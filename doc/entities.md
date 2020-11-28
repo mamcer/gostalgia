@@ -110,3 +110,9 @@ now(),
 0);
 
 SET FOREIGN_KEY_CHECKS=1;
+
+## find duplicates
+
+SELECT id, name, hash, size 
+FROM nostalgia.nfile as n 
+WHERE hash IN (SELECT hash FROM nostalgia.nfile WHERE id != n.id)

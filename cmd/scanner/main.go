@@ -128,7 +128,7 @@ func scan(paths []string, db *sql.DB) (int, int) {
 				paths = append(paths, fp)
 				dc++
 			} else {
-				fmt.Printf("\t%v\t", fp)
+				fmt.Printf("\t%-120v", fileinfo.Name())
 				h, _ := calculateHash(fp)
 				nfile := nfile{
 					name:         fileinfo.Name(),
@@ -144,7 +144,7 @@ func scan(paths []string, db *sql.DB) (int, int) {
 					fmt.Printf("[fail]\n%v\n", err)
 					bufio.NewReader(os.Stdin).ReadBytes('\n')
 				} else {
-					fmt.Printf("[ok]\n")
+					fmt.Printf("%v\n", "[ok]")
 				}
 				fc++
 				dfc++
@@ -172,7 +172,7 @@ func main() {
 	}
 	defer db.Close()
 
-	f, d := scan([]string{"/home/mario/Downloads/etc/videos/original"}, db)
+	f, d := scan([]string{"/mnt/homunculus/docs/ordenar-ultimo-scan"}, db)
 
 	fmt.Printf("total %v files in %v directories\n", f, d)
 }
