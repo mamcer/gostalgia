@@ -40,6 +40,7 @@
         `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
         `name` VARCHAR(255) NOT NULL,
         `path` VARCHAR(260) NOT NULL,
+        `modified` DATETIME NOT NULL,
         `parent_id` BIGINT UNSIGNED NOT NULL,
         `size` DECIMAL(15,4) NOT NULL,
         `count` BIGINT NOT NULL,
@@ -73,3 +74,39 @@
     CREATE INDEX `idx_nfile_name` ON `nfile`(`name`);
     CREATE INDEX `idx_nfile_extension` ON `nfile`(`extension`);
     CREATE INDEX `idx_nfile_modified` ON `nfile`(`modified`);
+
+
+## remove all data
+
+SET FOREIGN_KEY_CHECKS=0;
+
+TRUNCATE TABLE `nostalgia`.`nfile`;
+TRUNCATE TABLE `nostalgia`.`ndirectory`;
+
+SET FOREIGN_KEY_CHECKS=1;
+
+## seed data
+
+SET FOREIGN_KEY_CHECKS=0;
+
+DELETE FROM `nostalgia`.`ndirectory`;
+
+ALTER TABLE `nostalgia`.`ndirectory` AUTO_INCREMENT = 0;
+
+INSERT INTO `nostalgia`.`ndirectory`
+(`name`,
+`path`,
+`modified`,
+`parent_id`,
+`size`,
+`count`)
+VALUES
+(
+"$",
+"/",
+now(),
+0,
+0,
+0);
+
+SET FOREIGN_KEY_CHECKS=1;

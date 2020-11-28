@@ -11,10 +11,33 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
+
+type ndirectory struct {
+	id       int64
+	name     string
+	path     string
+	modified time.Time
+	parentID int64
+	size     int64
+	count    int64
+}
+
+type nfile struct {
+	id           int64
+	name         string
+	extension    string
+	path         string
+	modified     time.Time
+	size         int64
+	hash         string
+	ndirectoryID int64
+}
 
 func elapsed(what string) func() {
 	start := time.Now()
@@ -42,28 +65,7 @@ func calculateHash(filePath string) (string, error) {
 	return sha, nil
 }
 
-func insertItem(db *sql.DB, name string, size int64, modifiedDate time.Time, createdDate time.Time, paths string) (int64, error) {
-	// stmt, err := db.Prepare("INSERT item SET name=?, size=?, modified_date=?, created_date=?, type=?, paths=?")
-	// if err != nil {
-	// 	return -1, err
-	// }
-	// defer stmt.Close()
-
-	// res, err := stmt.Exec(name, size, modifiedDate, createdDate, t, paths)
-	// if err != nil {
-	// 	return -1, err
-	// }
-
-	// return res.LastInsertId()
-
-	return 1, nil
-}
-
 func scan(paths []string, db *sql.DB) (int, int) {
-	p := ""
-	fc := 0
-	dc := 0
-
 	stmtFile, err := db.Prepare("INSERT INTO `nfile` (`name`, `extension`, `path`, `modified`, `size`, `hash`, `ndirectory_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	defer stmtFile.Close()
 	if err != nil {
@@ -71,36 +73,89 @@ func scan(paths []string, db *sql.DB) (int, int) {
 		bufio.NewReader(os.Stdin).ReadBytes('\n')
 	}
 
-	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `parent_id`, `size`, `count`) VALUES (?, ?, ?, ?, ?)")
-	defer stmtFile.Close()
+	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `modified`, `parent_id`, `size`, `count`) VALUES (?, ?, ?, ?, ?, ?)")
+	defer stmtDirectory.Close()
 	if err != nil {
 		fmt.Printf("error preparing directory insert: %v\n", err)
 		bufio.NewReader(os.Stdin).ReadBytes('\n')
 	}
 
+	stmtUpdateDirectory, err := db.Prepare("UPDATE `ndirectory` SET `size` = ?, `count` = ? WHERE id = ?")
+	defer stmtUpdateDirectory.Close()
+	if err != nil {
+		fmt.Printf("error preparing directory update: %v\n", err)
+		bufio.NewReader(os.Stdin).ReadBytes('\n')
+	}
+
+	p := ""
+	fc := 0
+	dc := 0
+	var parentID int64 = 1
 	for i := 0; i < len(paths); i++ {
 		p = paths[i]
+		dfc := 0
+		var ds int64
+
+		fmt.Printf("%v\n", p)
+		name := path.Base(p)
+		if parentID == 0 {
+			name = "$"
+		}
+
+		fileStat, err := os.Stat(p)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		parent := ndirectory{name: name, path: p, modified: fileStat.ModTime(), parentID: parentID, size: 10, count: 10}
+		res, err := stmtDirectory.Exec(parent.name, parent.path, parent.modified, parent.parentID, parent.size, parent.count)
+		if err != nil {
+			fmt.Printf("error inserting parent directory '%v': %v\n", parent.path, err)
+			bufio.NewReader(os.Stdin).ReadBytes('\n')
+		}
+
+		parentID, _ := res.LastInsertId()
+		parent.id = parentID
+
 		files, err := ioutil.ReadDir(p)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		for _, fileinfo := range files {
+			fp := path.Join(p, fileinfo.Name())
 			if fileinfo.IsDir() {
-				fmt.Printf("DIRECTORY:\n\tfull path:%v\n\tmod time:%v\n\tname:%v\n\tsize:%v\n\tmode:%v\n\n", p, fileinfo.ModTime(), fileinfo.Name(), fileinfo.Size(), fileinfo.Mode())
-				paths = append(paths, path.Join(p, fileinfo.Name()))
-				insertItem(db, fileinfo.Name(), fileinfo.Size(), fileinfo.ModTime(), time.Now(), p)
-				_, err = stmtDirectory.Exec(fileinfo.Name(), p, 0, fileinfo.Size(), fileinfo.ModTime())
-				if err != nil {
-					fmt.Printf("error inserting order: %v, %v\n%v\n", order.ID, err, order.toString())
-					bufio.NewReader(os.Stdin).ReadBytes('\n')
-				}
+				paths = append(paths, fp)
 				dc++
 			} else {
-				fmt.Printf("FILE:\n\tfull path:%v\n\tmod time:%v\n\tname:%v\n\tsize:%v\n\tmode:%v\n\n", path.Join(p, fileinfo.Name()), fileinfo.ModTime(), fileinfo.Name(), fileinfo.Size(), fileinfo.Mode())
-				insertItem(db, fileinfo.Name(), fileinfo.Size(), fileinfo.ModTime(), time.Now(), p)
+				fmt.Printf("\t%v\t", fp)
+				h, _ := calculateHash(fp)
+				nfile := nfile{
+					name:         fileinfo.Name(),
+					extension:    strings.Trim(filepath.Ext(fileinfo.Name()), "."),
+					path:         p,
+					modified:     fileinfo.ModTime(),
+					size:         fileinfo.Size(),
+					hash:         h,
+					ndirectoryID: parentID,
+				}
+				_, err = stmtFile.Exec(nfile.name, nfile.extension, nfile.path, nfile.modified, nfile.size, nfile.hash, nfile.ndirectoryID)
+				if err != nil {
+					fmt.Printf("[fail]\n%v\n", err)
+					bufio.NewReader(os.Stdin).ReadBytes('\n')
+				} else {
+					fmt.Printf("[ok]\n")
+				}
 				fc++
+				dfc++
+				ds += nfile.size
 			}
+		}
+
+		_, err = stmtUpdateDirectory.Exec(ds, dfc, parent.id)
+		if err != nil {
+			fmt.Printf("error updating directory: %v : %v\n", parent.id, err)
+			bufio.NewReader(os.Stdin).ReadBytes('\n')
 		}
 	}
 
@@ -117,7 +172,7 @@ func main() {
 	}
 	defer db.Close()
 
-	f, d := scan([]string{"/Users/marmoreno/Downloads"}, db)
+	f, d := scan([]string{"/home/mario/Downloads/etc/videos/original"}, db)
 
 	fmt.Printf("total %v files in %v directories\n", f, d)
 }
