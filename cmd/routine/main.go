@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -90,15 +92,54 @@ func scan(paths []string, result *nscan) {
 	}
 }
 
+// func handle(queue chan *Request) {
+//     for r := range queue {
+//         process(r)
+//     }
+// }
+
+// func Serve(clientRequests chan *Request, quit chan bool) {
+//     // Start handlers
+//     for i := 0; i < MaxOutstanding; i++ {
+//         go handle(clientRequests)
+//     }
+//     <-quit  // Wait to be told to exit.
+// }
+
+// var sem = make(chan int, MaxOutstanding)
+
+// func Serve(queue chan *Request) {
+//     for req := range queue {
+//         sem <- 1
+//         go func(req *Request) {
+//             process(req)
+//             <-sem
+//         }(req)
+//     }
+// }
+
 func process(result *nscan) {
 	var f int64 = 1
+	sem := make(chan int, 100)
+	var wg sync.WaitGroup
+	var index int = 1
 	for i, dir := range result.directories {
 		fmt.Printf("[%06d/%06v] %v\n", i+1, len(result.directories), dir.path)
-		for _, file := range result.files[dir.id] {
-			fmt.Printf("%-5v[%06d/%06v] \t%v\n", "", f, result.fileCount, file.name)
-			f++
-		}
+		wg.Add(1)
+		sem <- 1
+		go func(files []nfile, index int) {
+			defer wg.Done()
+			for _, file := range files {
+				time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
+				//fmt.Printf("%-5v %v : [%06d/%06v] \t%v\n", "", index, f, result.fileCount, file.name)
+				fmt.Printf("%-5v %v f:%v - %v\n", "", index, f, file.name)
+				f++
+			}
+			<-sem
+		}(result.files[dir.id], index)
+		index++
 	}
+	wg.Wait()
 }
 
 func main() {

@@ -98,9 +98,6 @@ func scan(paths []string, db *sql.DB) (int, int) {
 
 		fmt.Printf("%v\n", p)
 		name := path.Base(p)
-		if parentID == 0 {
-			name = "$"
-		}
 
 		fileStat, err := os.Stat(p)
 		if err != nil {
