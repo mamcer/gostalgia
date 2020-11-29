@@ -2,9 +2,11 @@ package main
 
 import (
 	"bufio"
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path"
 	"path/filepath"
@@ -118,26 +120,46 @@ func scan(paths []string, result *nscan) {
 //     }
 // }
 
+func calculateHash(filePath string) (string, error) {
+	var sha string
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return sha, err
+	}
+	defer file.Close()
+
+	hash := sha1.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return sha, err
+	}
+
+	bytes := hash.Sum(nil)[:20]
+	sha = hex.EncodeToString(bytes)
+	return sha, nil
+}
+
 func process(result *nscan) {
 	var f int64 = 1
-	sem := make(chan int, 100)
+	sem := make(chan int, 4)
 	var wg sync.WaitGroup
 	var index int = 1
 	for i, dir := range result.directories {
 		fmt.Printf("[%06d/%06v] %v\n", i+1, len(result.directories), dir.path)
-		wg.Add(1)
-		sem <- 1
-		go func(files []nfile, index int) {
-			defer wg.Done()
-			for _, file := range files {
-				time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
+		for _, file := range result.files[dir.id] {
+			wg.Add(1)
+			sem <- 1
+			go func(file nfile, index int) {
+				defer wg.Done()
+				hash, _ := calculateHash(path.Join(file.path, file.name))
+				//time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
 				//fmt.Printf("%-5v %v : [%06d/%06v] \t%v\n", "", index, f, result.fileCount, file.name)
-				fmt.Printf("%-5v %v f:%v - %v\n", "", index, f, file.name)
+				fmt.Printf("%-5v %v f:%v - %v hash:%v\n", "", index, f, file.name, hash)
 				f++
-			}
-			<-sem
-		}(result.files[dir.id], index)
-		index++
+				<-sem
+			}(file, index)
+			index++
+		}
 	}
 	wg.Wait()
 }
@@ -149,7 +171,7 @@ func main() {
 	var result nscan
 	result.files = make(map[int64][]nfile)
 	fmt.Printf("processing directories\t")
-	scan([]string{"/media/mario/etc/ordenar-ultimo-scan/music"}, &result)
+	scan([]string{"/media/mario/etc/ordenar-ultimo-scan/varios-scan"}, &result)
 	fmt.Printf("[ok]\n")
 
 	fmt.Printf("total %v  items: %v files in %v directories, total size: %vGB\n", int64(len(result.directories))+result.fileCount, len(result.directories), result.fileCount, result.fileSize/1000/1000/1000)
