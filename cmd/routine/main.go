@@ -53,7 +53,6 @@ func scan(paths []string, result *nscan) {
 	for i := 0; i < len(paths); i++ {
 		p = paths[i]
 
-		//fmt.Printf("%v\n", p)
 		name := path.Base(p)
 
 		parent := ndirectory{id: id, name: name, path: p}
@@ -72,7 +71,6 @@ func scan(paths []string, result *nscan) {
 			if fileinfo.IsDir() {
 				paths = append(paths, fp)
 			} else {
-				//fmt.Printf("\t%-120v\n", fileinfo.Name())
 				nfile := nfile{
 					name:         fileinfo.Name(),
 					extension:    strings.Trim(filepath.Ext(fileinfo.Name()), "."),
@@ -109,7 +107,9 @@ func main() {
 
 	var result nscan
 	result.files = make(map[int64][]nfile)
+	fmt.Printf("processing directories\t")
 	scan([]string{"/media/mario/etc/ordenar-ultimo-scan/music"}, &result)
+	fmt.Printf("[ok]\n")
 
 	fmt.Printf("total %v  items: %v files in %v directories, total size: %vGB\n", int64(len(result.directories))+result.fileCount, len(result.directories), result.fileCount, result.fileSize/1000/1000/1000)
 	bufio.NewReader(os.Stdin).ReadBytes('\n')
