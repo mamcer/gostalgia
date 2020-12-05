@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"crypto/sha1"
-	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -65,28 +64,7 @@ func calculateHash(filePath string) (string, error) {
 	return sha, nil
 }
 
-func scan(paths []string, db *sql.DB) (int, int) {
-	stmtFile, err := db.Prepare("INSERT INTO `nfile` (`name`, `extension`, `path`, `modified`, `size`, `hash`, `ndirectory_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
-	defer stmtFile.Close()
-	if err != nil {
-		fmt.Printf("error preparing file insert: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-	}
-
-	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `modified`, `parent_id`, `size`, `count`) VALUES (?, ?, ?, ?, ?, ?)")
-	defer stmtDirectory.Close()
-	if err != nil {
-		fmt.Printf("error preparing directory insert: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-	}
-
-	stmtUpdateDirectory, err := db.Prepare("UPDATE `ndirectory` SET `size` = ?, `count` = ? WHERE id = ?")
-	defer stmtUpdateDirectory.Close()
-	if err != nil {
-		fmt.Printf("error preparing directory update: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-	}
-
+func scan(paths []string) (int, int) {
 	p := ""
 	fc := 0
 	dc := 0
@@ -105,14 +83,12 @@ func scan(paths []string, db *sql.DB) (int, int) {
 		}
 
 		parent := ndirectory{name: name, path: p, modified: fileStat.ModTime(), parentID: parentID, size: 10, count: 10}
-		res, err := stmtDirectory.Exec(parent.name, parent.path, parent.modified, parent.parentID, parent.size, parent.count)
 		if err != nil {
 			fmt.Printf("error inserting parent directory '%v': %v\n", parent.path, err)
 			bufio.NewReader(os.Stdin).ReadBytes('\n')
 		}
 
-		parentID, _ := res.LastInsertId()
-		parent.id = parentID
+		parent.id = 0
 
 		files, err := ioutil.ReadDir(p)
 		if err != nil {
@@ -136,23 +112,11 @@ func scan(paths []string, db *sql.DB) (int, int) {
 					hash:         h,
 					ndirectoryID: parentID,
 				}
-				_, err = stmtFile.Exec(nfile.name, nfile.extension, nfile.path, nfile.modified, nfile.size, nfile.hash, nfile.ndirectoryID)
-				if err != nil {
-					fmt.Printf("[fail]\n%v\n", err)
-					bufio.NewReader(os.Stdin).ReadBytes('\n')
-				} else {
-					fmt.Printf("%v\n", "[ok]")
-				}
+				fmt.Printf("%v\n", "[ok]")
 				fc++
 				dfc++
 				ds += nfile.size
 			}
-		}
-
-		_, err = stmtUpdateDirectory.Exec(ds, dfc, parent.id)
-		if err != nil {
-			fmt.Printf("error updating directory: %v : %v\n", parent.id, err)
-			bufio.NewReader(os.Stdin).ReadBytes('\n')
 		}
 	}
 
@@ -163,13 +127,13 @@ func main() {
 	fmt.Printf("process started\n")
 	defer elapsed("process finished")()
 
-	db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/nostalgia")
-	if err != nil {
-		panic(err.Error())
-	}
-	defer db.Close()
+	// db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/nostalgia")
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+	// defer db.Close()
 
-	f, d := scan([]string{"/mnt/homunculus/docs/ordenar-ultimo-scan"}, db)
+	f, d := scan([]string{"/media/mario/etc/ordenar-ultimo-scan/varios-scan"}) //, db)
 
 	fmt.Printf("total %v files in %v directories\n", f, d)
 }

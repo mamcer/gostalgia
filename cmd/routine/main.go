@@ -171,7 +171,7 @@ func main() {
 	var result nscan
 	result.files = make(map[int64][]nfile)
 	fmt.Printf("processing directories\t")
-	scan([]string{"/media/mario/etc/ordenar-ultimo-scan/varios-scan"}, &result)
+	scan([]string{"/media/mario/etc/yanina"}, &result)
 	fmt.Printf("[ok]\n")
 
 	fmt.Printf("total %v  items: %v files in %v directories, total size: %vGB\n", int64(len(result.directories))+result.fileCount, len(result.directories), result.fileCount, result.fileSize/1000/1000/1000)
