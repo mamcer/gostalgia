@@ -94,32 +94,6 @@ func scan(paths []string, result *nscan) {
 	}
 }
 
-// func handle(queue chan *Request) {
-//     for r := range queue {
-//         process(r)
-//     }
-// }
-
-// func Serve(clientRequests chan *Request, quit chan bool) {
-//     // Start handlers
-//     for i := 0; i < MaxOutstanding; i++ {
-//         go handle(clientRequests)
-//     }
-//     <-quit  // Wait to be told to exit.
-// }
-
-// var sem = make(chan int, MaxOutstanding)
-
-// func Serve(queue chan *Request) {
-//     for req := range queue {
-//         sem <- 1
-//         go func(req *Request) {
-//             process(req)
-//             <-sem
-//         }(req)
-//     }
-// }
-
 func calculateHash(filePath string) (string, error) {
 	var sha string
 
@@ -152,8 +126,6 @@ func process(result *nscan) {
 			go func(file nfile, index int) {
 				defer wg.Done()
 				hash, _ := calculateHash(path.Join(file.path, file.name))
-				//time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
-				//fmt.Printf("%-5v %v : [%06d/%06v] \t%v\n", "", index, f, result.fileCount, file.name)
 				fmt.Printf("%-5v %v f:%v - %v hash:%v\n", "", index, f, file.name, hash)
 				f++
 				<-sem
