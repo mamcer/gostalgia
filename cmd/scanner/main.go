@@ -172,7 +172,7 @@ func main() {
 	}
 	defer db.Close()
 
-	f, d := scan([]string{"/mnt/homunculus/docs/ordenar-ultimo-scan"}, db)
+	f, d := scan([]string{"/media/darkforce/pictures"}, db)
 
 	fmt.Printf("total %v files in %v directories\n", f, d)
 }

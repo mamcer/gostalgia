@@ -116,3 +116,8 @@ SET FOREIGN_KEY_CHECKS=1;
 SELECT id, name, hash, size 
 FROM nostalgia.nfile as n 
 WHERE hash IN (SELECT hash FROM nostalgia.nfile WHERE id != n.id)
+
+## pictures
+
+total 126487 files in 957 directories
+process finished: 4h17m49.674226637s
