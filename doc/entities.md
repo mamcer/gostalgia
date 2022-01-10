@@ -22,8 +22,8 @@
 
 ## MySQL
 
-    docker pull mysql:5.7.30
-    docker run -p 3306:3306 --name nostalgia -e MYSQL_ROOT_PASSWORD=root -d mysql:5.7.30
+    docker pull mysql:latest
+    docker run -p 3306:3306 --name nostalgia -e MYSQL_ROOT_PASSWORD=root -d mysql:latest
 
     docker exec -it nostalgia mysql -uroot -p
     create database nostalgia;
@@ -74,7 +74,6 @@
     CREATE INDEX `idx_nfile_name` ON `nfile`(`name`);
     CREATE INDEX `idx_nfile_extension` ON `nfile`(`extension`);
     CREATE INDEX `idx_nfile_modified` ON `nfile`(`modified`);
-
 
 ## remove all data
 
