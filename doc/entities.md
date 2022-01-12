@@ -56,3 +56,7 @@ With Size
 
 > only pictures, 20321 distinct files repeated. total 251.54GB
 
+## pictures
+
+total 126487 files in 957 directories
+process finished: 4h17m49.674226637s
