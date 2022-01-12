@@ -39,13 +39,6 @@ type nfile struct {
 	ndirectoryID int64
 }
 
-func elapsed(what string) func() {
-	start := time.Now()
-	return func() {
-		fmt.Printf("%s: %v\n", what, time.Since(start))
-	}
-}
-
 func calculateHash(filePath string) (string, error) {
 	var sha string
 
@@ -66,28 +59,54 @@ func calculateHash(filePath string) (string, error) {
 }
 
 func scan(paths []string, db *sql.DB) (int, int) {
-	stmtFile, err := db.Prepare("INSERT INTO `nfile` (`name`, `extension`, `path`, `modified`, `size`, `hash`, `ndirectory_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
-	defer stmtFile.Close()
-	if err != nil {
-		fmt.Printf("error preparing file insert: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-	}
+	start := time.Now()
+	fmt.Printf("scan process started\n")
 
-	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `modified`, `parent_id`, `size`, `count`) VALUES (?, ?, ?, ?, ?, ?)")
-	defer stmtDirectory.Close()
-	if err != nil {
-		fmt.Printf("error preparing directory insert: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-	}
+	// stmtFile, err := db.Prepare("INSERT INTO `nfile` (`name`, `extension`, `path`, `modified`, `size`, `hash`, `ndirectory_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	// defer stmtFile.Close()
+	// if err != nil {
+	// 	fmt.Printf("error preparing file insert: %v\n", err)
+	// 	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	// }
 
-	stmtUpdateDirectory, err := db.Prepare("UPDATE `ndirectory` SET `size` = ?, `count` = ? WHERE id = ?")
-	defer stmtUpdateDirectory.Close()
-	if err != nil {
-		fmt.Printf("error preparing directory update: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-	}
+	// stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `modified`, `parent_id`, `size`, `count`) VALUES (?, ?, ?, ?, ?, ?)")
+	// defer stmtDirectory.Close()
+	// if err != nil {
+	// 	fmt.Printf("error preparing directory insert: %v\n", err)
+	// 	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	// }
+
+	// stmtUpdateDirectory, err := db.Prepare("UPDATE `ndirectory` SET `size` = ?, `count` = ? WHERE id = ?")
+	// defer stmtUpdateDirectory.Close()
+	// if err != nil {
+	// 	fmt.Printf("error preparing directory update: %v\n", err)
+	// 	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	// }
 
 	p := ""
+	tfc := 0
+	ps := []string{paths[0]}
+	for i := 0; i < len(ps); i++ {
+		p = ps[i]
+
+		files, err := ioutil.ReadDir(p)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, fileinfo := range files {
+			fp := path.Join(p, fileinfo.Name())
+			if fileinfo.IsDir() {
+				ps = append(ps, fp)
+			} else {
+				tfc += 1
+			}
+		}
+	}
+
+	fmt.Printf("total file count: %v\n", tfc)
+
+	p = ""
 	fc := 0
 	dc := 0
 	var parentID int64 = 1
@@ -96,11 +115,7 @@ func scan(paths []string, db *sql.DB) (int, int) {
 		dfc := 0
 		var ds int64
 
-		fmt.Printf("%v\n", p)
 		name := path.Base(p)
-		if parentID == 0 {
-			name = "$"
-		}
 
 		fileStat, err := os.Stat(p)
 		if err != nil {
@@ -108,14 +123,14 @@ func scan(paths []string, db *sql.DB) (int, int) {
 		}
 
 		parent := ndirectory{name: name, path: p, modified: fileStat.ModTime(), parentID: parentID, size: 10, count: 10}
-		res, err := stmtDirectory.Exec(parent.name, parent.path, parent.modified, parent.parentID, parent.size, parent.count)
+		//res, err := stmtDirectory.Exec(parent.name, parent.path, parent.modified, parent.parentID, parent.size, parent.count)
 		if err != nil {
 			fmt.Printf("error inserting parent directory '%v': %v\n", parent.path, err)
 			bufio.NewReader(os.Stdin).ReadBytes('\n')
 		}
 
-		parentID, _ := res.LastInsertId()
-		parent.id = parentID
+		//parentID, _ := res.LastInsertId()
+		//parent.id = parentID
 
 		files, err := ioutil.ReadDir(p)
 		if err != nil {
@@ -128,7 +143,7 @@ func scan(paths []string, db *sql.DB) (int, int) {
 				paths = append(paths, fp)
 				dc++
 			} else {
-				fmt.Printf("\t%-120v", fileinfo.Name())
+				fmt.Printf("%+03v%% - %v\n", (fc+1)*100/tfc, fp)
 				h, _ := calculateHash(fp)
 				nfile := nfile{
 					name:         fileinfo.Name(),
@@ -139,40 +154,68 @@ func scan(paths []string, db *sql.DB) (int, int) {
 					hash:         h,
 					ndirectoryID: parentID,
 				}
-				_, err = stmtFile.Exec(nfile.name, nfile.extension, nfile.path, nfile.modified, nfile.size, nfile.hash, nfile.ndirectoryID)
+				//_, err = stmtFile.Exec(nfile.name, nfile.extension, nfile.path, nfile.modified, nfile.size, nfile.hash, nfile.ndirectoryID)
 				if err != nil {
 					fmt.Printf("[fail]\n%v\n", err)
 					bufio.NewReader(os.Stdin).ReadBytes('\n')
-				} else {
-					fmt.Printf("%v\n", "[ok]")
 				}
+
 				fc++
 				dfc++
 				ds += nfile.size
 			}
 		}
 
-		_, err = stmtUpdateDirectory.Exec(ds, dfc, parent.id)
-		if err != nil {
-			fmt.Printf("error updating directory: %v : %v\n", parent.id, err)
-			bufio.NewReader(os.Stdin).ReadBytes('\n')
-		}
+		//_, err = stmtUpdateDirectory.Exec(ds, dfc, parent.id)
+		// if err != nil {
+		// 	fmt.Printf("error updating directory: %v : %v\n", parent.id, err)
+		// 	bufio.NewReader(os.Stdin).ReadBytes('\n')
+		// }
 	}
+
+	elapsed := time.Since(start)
+	fmt.Printf("process finished: %v\n", elapsed)
 
 	return fc, dc
 }
 
 func main() {
-	fmt.Printf("process started\n")
-	defer elapsed("process finished")()
-
 	db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/nostalgia")
 	if err != nil {
 		panic(err.Error())
 	}
 	defer db.Close()
 
-	f, d := scan([]string{"/mnt/homunculus/docs/ordenar-ultimo-scan"}, db)
+	if len(os.Args) > 1 {
+		if os.Args[1] == "scan" {
+			if len(os.Args) > 2 {
+				p := os.Args[2]
+				_, _ = scan([]string{p}, db)
+			} else {
+				fmt.Printf("you must provide a valid path to scan\n")
+			}
+		} else if os.Args[1] == "retry" {
+			if len(os.Args) > 2 {
+				fmt.Printf("%v %v\n", os.Args[1], os.Args[2])
+			} else {
+				fmt.Printf("you must provide a valid scan id to retry\n")
+			}
+		} else if os.Args[1] == "scans" {
+			fmt.Printf("%v\n", os.Args[1])
+		} else if os.Args[1] == "errors" {
+			if len(os.Args) > 2 {
+				fmt.Printf("%v %v\n", os.Args[1], os.Args[2])
+			} else {
+				fmt.Printf("you must provide a valid scan id to see errors\n")
+			}
+		} else {
+			fmt.Printf("unknown command: %v\n", os.Args[1])
+		}
+	} else {
+		fmt.Printf("usage:\nscan [path]\nretry [scan-id]\nscans\nerrors [scan-id]\n")
+	}
 
-	fmt.Printf("total %v files in %v directories\n", f, d)
+	//f, d := scan([]string{"/media/darkforce"}, db)
+
+	//fmt.Printf("total %v files in %v directories\n", f, d)
 }
