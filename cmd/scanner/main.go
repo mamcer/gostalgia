@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -103,6 +102,7 @@ func sizeString(v int64) string {
 		}
 		return fmt.Sprintf("%v kB", strconv.FormatFloat(r, 'f', 1, 64))
 	}
+
 	return fmt.Sprintf("%v", strconv.FormatFloat(r, 'f', 1, 64))
 }
 
@@ -187,8 +187,7 @@ func scan(paths []string, db *sql.DB) int {
 	defer stmtScan.Close()
 	if err != nil {
 		fmt.Printf("error preparing nscan insert: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-		os.Exit(1)
+		return 1
 	}
 
 	// nscan update
@@ -196,7 +195,7 @@ func scan(paths []string, db *sql.DB) int {
 	defer stmtUpdateScan.Close()
 	if err != nil {
 		fmt.Printf("error preparing ndirectory update: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
+		return 1
 	}
 
 	// ndirectory insert
@@ -204,7 +203,7 @@ func scan(paths []string, db *sql.DB) int {
 	defer stmtDirectory.Close()
 	if err != nil {
 		fmt.Printf("error preparing ndirectory insert: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
+		return 1
 	}
 
 	// ndirectory update
@@ -212,7 +211,7 @@ func scan(paths []string, db *sql.DB) int {
 	defer stmtUpdateDirectory.Close()
 	if err != nil {
 		fmt.Printf("error preparing ndirectory update: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
+		return 1
 	}
 
 	// nfile_nscan insert
@@ -220,8 +219,7 @@ func scan(paths []string, db *sql.DB) int {
 	defer stmtFileScan.Close()
 	if err != nil {
 		fmt.Printf("error preparing nscan_nfile insert: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-		os.Exit(1)
+		return 1
 	}
 
 	// nfile insert
@@ -229,7 +227,15 @@ func scan(paths []string, db *sql.DB) int {
 	defer stmtFile.Close()
 	if err != nil {
 		fmt.Printf("error preparing nfile insert: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
+		return 1
+	}
+
+	// nerror insert
+	stmtError, err := db.Prepare("INSERT INTO `nerror` (`description`, `nscan_id`, `retry_count`) VALUES (?, ?, ?)")
+	defer stmtError.Close()
+	if err != nil {
+		fmt.Printf("error preparing nerror insert: %v\n", err)
+		return 1
 	}
 
 	// insert scan
@@ -237,7 +243,7 @@ func scan(paths []string, db *sql.DB) int {
 	res, err := stmtScan.Exec(ns.dateCreated, ns.status, ns.rootDirectoryPath, ns.retryCount)
 	if err != nil {
 		fmt.Printf("error inserting nscan: %v\n", err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
+		return 1
 	}
 
 	sid, _ := res.LastInsertId()
@@ -249,10 +255,7 @@ func scan(paths []string, db *sql.DB) int {
 	for i := 0; i < len(ps); i++ {
 		p = ps[i]
 
-		files, err := ioutil.ReadDir(p)
-		if err != nil {
-			log.Fatal(err)
-		}
+		files, _ := ioutil.ReadDir(p)
 
 		for _, fileinfo := range files {
 			fp := path.Join(p, fileinfo.Name())
@@ -284,7 +287,8 @@ func scan(paths []string, db *sql.DB) int {
 		res, err := stmtDirectory.Exec(parent.name, parent.path, parent.size, parent.fileCount, parent.parentID, parent.nscanID)
 		if err != nil {
 			fmt.Printf("error inserting parent directory '%v': %v\n", parent.path, err)
-			bufio.NewReader(os.Stdin).ReadBytes('\n')
+			_, _ = stmtError.Exec(fmt.Sprintf("error inserting parent directory '%v' - %v", parent.path, err), ns.ID, ns.retryCount)
+			ec += 1
 		}
 
 		ppid := pid
@@ -297,13 +301,16 @@ func scan(paths []string, db *sql.DB) int {
 			_, err = stmtUpdateScan.Exec(0, 0, 0, ns.status, ns.rootDirectoryId, ns.retryCount, ns.ID)
 			if err != nil {
 				fmt.Printf("error updating nscan: %v : %v\n", sid, err)
-				bufio.NewReader(os.Stdin).ReadBytes('\n')
+				_, _ = stmtError.Exec(fmt.Sprintf("error updating nscan: %v - %v", sid, err), ns.ID, ns.retryCount)
+				ec += 1
 			}
 		}
 
 		files, err := ioutil.ReadDir(p)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Printf("error reading directory path: [%v] - %v", p, err)
+			_, _ = stmtError.Exec(fmt.Sprintf("error reading directory path: [%v] - %v", p, err), ns.ID, ns.retryCount)
+			ec += 1
 		}
 
 		for _, fileinfo := range files {
@@ -321,7 +328,8 @@ func scan(paths []string, db *sql.DB) int {
 					_, err := stmtFileScan.Exec(efi, parent.ID, ns.ID)
 					if err != nil {
 						fmt.Printf("error inserting file_scan '%v': %v\n", efi, err)
-						bufio.NewReader(os.Stdin).ReadBytes('\n')
+						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file_scan '%v' - %v", efi, err), ns.ID, ns.retryCount)
+						ec += 1
 					}
 					efc += 1
 					fmt.Printf("%+03v%% - [exists] %v\n", (fc+1)*100/tfc, fp)
@@ -339,6 +347,8 @@ func scan(paths []string, db *sql.DB) int {
 					_, err = stmtFile.Exec(nfile.name, nfile.extension, nfile.path, nfile.dateModified, nfile.size, nfile.hash, nfile.ndirectoryID, nfile.nscanID)
 					if err != nil {
 						fmt.Printf("[fail]\n%v\n", err)
+						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file [%v] - %v", nfile.path, err), ns.ID, ns.retryCount)
+						ec += 1
 					}
 					fmt.Printf("%+03v%% - [new] %v\n", (fc+1)*100/tfc, fp)
 				}
@@ -351,8 +361,9 @@ func scan(paths []string, db *sql.DB) int {
 
 		_, err = stmtUpdateDirectory.Exec(ds, dfc, parent.ID)
 		if err != nil {
-			fmt.Printf("error updating parent ndirectory: %v : %v\n", parent.ID, err)
-			bufio.NewReader(os.Stdin).ReadBytes('\n')
+			fmt.Printf("error updating ndirectory: %v : %v\n", parent.ID, err)
+			_, _ = stmtError.Exec(fmt.Sprintf("error updating ndirectory: %v - %v\n", parent.ID, err), ns.ID, ns.retryCount)
+			ec += 1
 		}
 	}
 
@@ -364,14 +375,18 @@ func scan(paths []string, db *sql.DB) int {
 	_, err = stmtUpdateScan.Exec(elapsed.Milliseconds(), ns.fileCount, ns.directoryCount, ns.status, ns.rootDirectoryId, 0, ns.ID)
 	if err != nil {
 		fmt.Printf("error updating nscan: %v : %v\n", ns.ID, err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
+		_, _ = stmtError.Exec(fmt.Sprintf("error updating nscan: %v : %v\n", ns.ID, err), ns.ID, ns.retryCount)
+		ec += 1
 	}
 
-	fmt.Printf("process finished: %v\nscan_id: %v, files: %v, directories: %v, existing files: %v (%v%%), errors: %v\n", elapsed, ns.ID, ns.fileCount, ns.directoryCount, efc, efc*100/ns.fileCount, ec)
-
-	ss := updateDirectorySize(db, ns.rootDirectoryId, stmtUpdateDirectory)
+	var efp int64 = 0
+	if ns.fileCount > 0 {
+		efp = efc * 100 / ns.fileCount
+	}
+	fmt.Printf("process finished: %v\nscan_id: %v, files: %v, directories: %v, existing files: %v (%v%%), errors: %v\n", elapsed, ns.ID, ns.fileCount, ns.directoryCount, efc, efp, ec)
 
 	fmt.Printf("updating directory size...")
+	ss := updateDirectorySize(db, ns.rootDirectoryId, stmtUpdateDirectory)
 	fmt.Printf("[ok]\ntotal size: %v bytes, %v\n", ss, sizeString(ss))
 
 	return ec
