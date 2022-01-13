@@ -157,7 +157,7 @@ func scan(paths []string, db *sql.DB) int {
 	ns.ID = sid
 
 	p := ""
-	tfc := 0
+	var tfc int64 = 0
 	ps := []string{paths[0]}
 	for i := 0; i < len(ps); i++ {
 		p = ps[i]
@@ -180,8 +180,10 @@ func scan(paths []string, db *sql.DB) int {
 	fmt.Printf("total file count: %v\n", tfc)
 
 	p = ""
-	fc := 0
-	dc := 1
+	var fc int64 = 0
+	var dc int64 = 1
+	var efc int64 = 0
+	ec := 0
 	var pid int64 = 1
 	var rid int64 = 1
 	for i := 0; i < len(paths); i++ {
@@ -223,7 +225,6 @@ func scan(paths []string, db *sql.DB) int {
 				paths = append(paths, fp)
 				dc++
 			} else {
-				fmt.Printf("%+03v%% - %v\n", (fc+1)*100/tfc, fp)
 				h, _ := calculateHash(fp)
 
 				efi := 0
@@ -235,6 +236,8 @@ func scan(paths []string, db *sql.DB) int {
 						fmt.Printf("error inserting file_scan '%v': %v\n", efi, err)
 						bufio.NewReader(os.Stdin).ReadBytes('\n')
 					}
+					efc += 1
+					fmt.Printf("%+03v%% - [exists] %v\n", (fc+1)*100/tfc, fp)
 				} else {
 					nfile := nfile{
 						name:         fileinfo.Name(),
@@ -250,6 +253,7 @@ func scan(paths []string, db *sql.DB) int {
 					if err != nil {
 						fmt.Printf("[fail]\n%v\n", err)
 					}
+					fmt.Printf("%+03v%% - [new] %v\n", (fc+1)*100/tfc, fp)
 				}
 
 				fc++
@@ -267,15 +271,18 @@ func scan(paths []string, db *sql.DB) int {
 
 	elapsed := time.Since(start)
 
-	_, err = stmtUpdateScan.Exec(elapsed.Milliseconds(), fc, dc, Done, rid, 0, ns.ID)
+	ns.fileCount = fc
+	ns.directoryCount = dc
+	ns.status = Done
+	_, err = stmtUpdateScan.Exec(elapsed.Milliseconds(), ns.fileCount, ns.directoryCount, ns.status, ns.rootDirectoryId, 0, ns.ID)
 	if err != nil {
 		fmt.Printf("error updating nscan: %v : %v\n", ns.ID, err)
 		bufio.NewReader(os.Stdin).ReadBytes('\n')
 	}
 
-	fmt.Printf("process finished: %v\n", elapsed)
+	fmt.Printf("process finished: %v\nscan_id: %v, files: %v, directories: %v, existing files: %v (%v%%), errors: %v\n", elapsed, ns.ID, ns.fileCount, ns.directoryCount, efc, efc*100/ns.fileCount, ec)
 
-	return 0
+	return ec
 }
 
 func main() {
@@ -289,7 +296,27 @@ func main() {
 		if os.Args[1] == "scan" {
 			if len(os.Args) > 2 {
 				p := os.Args[2]
-				_ = scan([]string{p}, db)
+				sid := 0
+				db.QueryRow("SELECT `id` FROM `nscan` WHERE `root_directory_path` = ?", p).Scan(&sid)
+				if sid != 0 {
+					fmt.Printf("There is an existing scan (%v) with path: %v\n", sid, p)
+					reader := bufio.NewReader(os.Stdin)
+					for out := false; out == false; {
+						fmt.Printf("Do you want to continue? [Y/n] ")
+						k, _ := reader.ReadString('\n')
+						if err == nil {
+							if k == "\n" || k == "y\n" || k == "Y\n" {
+								out = true
+								_ = scan([]string{p}, db)
+							} else if k == "n\n" || k == "N\n" {
+								out = true
+							}
+						} else {
+							out = true
+						}
+
+					}
+				}
 			} else {
 				fmt.Printf("you must provide a valid path to scan\n")
 			}
