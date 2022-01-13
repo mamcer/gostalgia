@@ -238,6 +238,14 @@ func scan(paths []string, db *sql.DB) int {
 		return 1
 	}
 
+	// ntag insert
+	stmtTag, err := db.Prepare("INSERT INTO `ntag` (`name`, `nfile_id`) VALUES (?, ?)")
+	defer stmtTag.Close()
+	if err != nil {
+		fmt.Printf("error preparing ntag insert: %v\n", err)
+		return 1
+	}
+
 	// insert scan
 	ns := nscan{dateCreated: time.Now(), status: InProgress, rootDirectoryPath: paths[0], retryCount: 0}
 	res, err := stmtScan.Exec(ns.dateCreated, ns.status, ns.rootDirectoryPath, ns.retryCount)
@@ -322,15 +330,33 @@ func scan(paths []string, db *sql.DB) int {
 				h, _ := calculateHash(fp)
 
 				efi := 0
-				db.QueryRow("SELECT `id` FROM `nfile` WHERE `hash` = ?", h).Scan(&efi)
+				efn := ""
+				db.QueryRow("SELECT `id`, `name` FROM `nfile` WHERE `hash` = ?", h).Scan(&efi, &efn)
 				if efi != 0 {
 					// file exists
 					_, err := stmtFileScan.Exec(efi, parent.ID, ns.ID)
 					if err != nil {
-						fmt.Printf("error inserting file_scan '%v': %v\n", efi, err)
+						fmt.Printf("error inserting file_scan '%v'- %v\n", efi, err)
 						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file_scan '%v' - %v", efi, err), ns.ID, ns.retryCount)
 						ec += 1
 					}
+
+					tn := fileinfo.Name()
+					if efn != tn {
+						// add new file name as tag
+						et := 0
+						db.QueryRow("SELECT count(`id`) FROM `ntag` WHERE `name` = '?'", tn).Scan(&et)
+
+						if et == 0 {
+							_, err = stmtTag.Exec(tn, efi)
+							if err != nil {
+								fmt.Printf("error inserting tag: %v '%v' -  %v\n", efi, tn, err)
+								_, _ = stmtError.Exec(fmt.Sprintf("error inserting tag: %v '%v' -  %v\n", efi, tn, err), ns.ID, ns.retryCount)
+								ec += 1
+							}
+						}
+					}
+
 					efc += 1
 					fmt.Printf("%+03v%% - [exists] %v\n", (fc+1)*100/tfc, fp)
 				} else {

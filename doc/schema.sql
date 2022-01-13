@@ -65,6 +65,16 @@ CREATE TABLE `nerror` (
     PRIMARY KEY (`id`)
 ) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
 
+-- ntag
+CREATE TABLE `ntag` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(255) NOT NULL,
+    `nfile_id` BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
+
+CREATE INDEX `idx_ntag_name` ON `ntag`(`name`);
+
 -- fk nfile
 ALTER TABLE `nfile` 
 ADD CONSTRAINT `fk_nfile_ndirectory` 
@@ -115,6 +125,12 @@ ADD CONSTRAINT `fk_nerror_nscan`
 FOREIGN KEY (`nscan_id`) 
 REFERENCES `nscan`(`id`);
 
+-- fk nfiletag
+ALTER TABLE `ntag` 
+ADD CONSTRAINT `fk_ntag_nfile` 
+FOREIGN KEY (`nfile_id`) 
+REFERENCES `nfile`(`id`);
+
 -- insert default values
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -124,6 +140,7 @@ ALTER TABLE `nostalgia`.`ndirectory` AUTO_INCREMENT = 0;
 ALTER TABLE `nostalgia`.`nscan` AUTO_INCREMENT = 0;
 ALTER TABLE `nostalgia`.`nfile_nscan` AUTO_INCREMENT = 0;
 ALTER TABLE `nostalgia`.`nerror` AUTO_INCREMENT = 0;
+ALTER TABLE `nostalgia`.`ntag` AUTO_INCREMENT = 0;
 
 INSERT INTO `nostalgia`.`ndirectory`
 (`name`,
