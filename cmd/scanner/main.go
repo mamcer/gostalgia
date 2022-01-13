@@ -345,7 +345,7 @@ func scan(paths []string, db *sql.DB) int {
 					if efn != tn {
 						// add new file name as tag
 						et := 0
-						db.QueryRow("SELECT count(`id`) FROM `ntag` WHERE `name` = '?'", tn).Scan(&et)
+						db.QueryRow("SELECT count(`id`) FROM `ntag` WHERE `name` = ? and nfile_id = ?", tn, efi).Scan(&et)
 
 						if et == 0 {
 							_, err = stmtTag.Exec(tn, efi)
