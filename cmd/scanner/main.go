@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -89,6 +90,92 @@ func calculateHash(filePath string) (string, error) {
 	bytes := hash.Sum(nil)[:20]
 	sha = hex.EncodeToString(bytes)
 	return sha, nil
+}
+
+func sizeString(v int64) string {
+	r := float64(v)
+	u := 1000.0
+	if v > int64(u) {
+		r = r / u
+		if r > u {
+			r = r / u
+			return fmt.Sprintf("%v MB", strconv.FormatFloat(r, 'f', 1, 64))
+		}
+		return fmt.Sprintf("%v kB", strconv.FormatFloat(r, 'f', 1, 64))
+	}
+	return fmt.Sprintf("%v", strconv.FormatFloat(r, 'f', 1, 64))
+}
+
+func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) int64 {
+	var size int64 = 0
+
+	rows, err := db.Query("SELECT `id` FROM `ndirectory` WHERE `parent_id` = ?", rd)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id int64
+		err = rows.Scan(&id)
+		if err != nil {
+			panic(err)
+		}
+
+		size += updateDirectorySize(db, id, stmtUpdateDirectory)
+	}
+
+	var nfsizes []int64
+	db.QueryRow("SELECT `size` FROM `nfile` WHERE `ndirectory_id` = ?", rd).Scan(&nfsizes)
+	for i := 0; i < len(nfsizes); i++ {
+		size += nfsizes[i]
+	}
+
+	var fc int64 = 0
+	rows2, err := db.Query("SELECT `size` FROM `nfile` WHERE `ndirectory_id` = ?", rd)
+	if err != nil {
+		panic(err)
+	}
+	defer rows2.Close()
+	for rows2.Next() {
+		var s int64
+		err = rows2.Scan(&s)
+		if err != nil {
+			panic(err)
+		}
+
+		fc += 1
+		size += s
+	}
+
+	var nfssizes []int64
+	db.QueryRow("SELECT nf.`size` FROM `nfile` as nf, `nfile_nscan` as nfs WHERE nf.id = nfs.nfile_id and nfs.ndirectory_id = ?", rd).Scan(&nfssizes)
+	for i := 0; i < len(nfssizes); i++ {
+		size += nfssizes[i]
+	}
+
+	rows3, err := db.Query("SELECT nf.`size` FROM `nfile` as nf, `nfile_nscan` as nfs WHERE nf.id = nfs.nfile_id and nfs.ndirectory_id = ?", rd)
+	if err != nil {
+		panic(err)
+	}
+	defer rows3.Close()
+	for rows3.Next() {
+		var s int64
+		err = rows3.Scan(&s)
+		if err != nil {
+			panic(err)
+		}
+
+		fc += 1
+		size += s
+	}
+
+	_, err = stmtUpdateDirectory.Exec(size, fc, rd)
+	if err != nil {
+		fmt.Printf("error updating parent ndirectory: %v : %v\n", rd, err)
+		bufio.NewReader(os.Stdin).ReadBytes('\n')
+	}
+
+	return size
 }
 
 func scan(paths []string, db *sql.DB) int {
@@ -282,6 +369,11 @@ func scan(paths []string, db *sql.DB) int {
 
 	fmt.Printf("process finished: %v\nscan_id: %v, files: %v, directories: %v, existing files: %v (%v%%), errors: %v\n", elapsed, ns.ID, ns.fileCount, ns.directoryCount, efc, efc*100/ns.fileCount, ec)
 
+	ss := updateDirectorySize(db, ns.rootDirectoryId, stmtUpdateDirectory)
+
+	fmt.Printf("updating directory size...")
+	fmt.Printf("[ok]\ntotal size: %v bytes, %v\n", ss, sizeString(ss))
+
 	return ec
 }
 
@@ -299,7 +391,7 @@ func main() {
 				sid := 0
 				db.QueryRow("SELECT `id` FROM `nscan` WHERE `root_directory_path` = ?", p).Scan(&sid)
 				if sid != 0 {
-					fmt.Printf("There is an existing scan (%v) with path: %v\n", sid, p)
+					fmt.Printf("There is an existing scan (%v) with root directory path: %v\n", sid, p)
 					reader := bufio.NewReader(os.Stdin)
 					for out := false; out == false; {
 						fmt.Printf("Do you want to continue? [Y/n] ")
@@ -314,8 +406,9 @@ func main() {
 						} else {
 							out = true
 						}
-
 					}
+				} else {
+					_ = scan([]string{p}, db)
 				}
 			} else {
 				fmt.Printf("you must provide a valid path to scan\n")
