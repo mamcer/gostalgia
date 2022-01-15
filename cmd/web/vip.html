@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>cookme | view</title>
+    <meta name="description" content="nostalgia">
+    <meta name="author" content="Mario Moreno (m4mc3r@gmail.com)">
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+        integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <link rel="stylesheet" href="./main.css">
+</head>
+
+<body>
+    <h1 id="name"></h1>
+
+    <table>
+        <tr>
+            <th>Path</th>
+            <td>
+                <h id="path"></h>
+            </td>
+        </tr>
+        <tr>
+            <th>Modified</th>
+            <td>
+                <h id="date_modified"></h>
+            </td>
+        </tr>
+        <tr>
+            <th>Size</th>
+            <td>
+                <h id="size"></h>
+            </td>
+        </tr>
+        <tr>
+            <th>Directory</th>
+            <td>
+                <h id="ndirectory_id"></h>
+            </td>
+        </tr>
+        <tr>
+            <th>Scan</th>
+            <td>
+                <h id="nscan_id"></h>
+            </td>
+        </tr>
+    </table>
+
+    </br>
+
+    <input id="back-to-search" type="button" value="Go back to search"
+    onclick="javascript:location.href = 'index.html'" />
+    <input id="open-file" type="button" value="Open file" />
+
+    <script type="text/javascript" src="./vip.js"></script>
+</body>
+
+</html>
