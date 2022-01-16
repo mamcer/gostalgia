@@ -1,8 +1,5 @@
 document.onreadystatechange = function () {
 
-	var ingredientId = 0;
-	var ingredientCount = 0;
-
 	function checkConnection() {
 		var request = new XMLHttpRequest();
 		request.open('GET', 'http://localhost:5000/ping');
@@ -39,34 +36,6 @@ document.onreadystatechange = function () {
 		request.setRequestHeader("Access-Control-Allow-Origin", "*")
 		request.setRequestHeader("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
 		request.send();
-	}
-
-	function removeSearchIngredient(id) {
-		var ingredient = document.getElementById('ingredient_' + id);
-		ingredient.parentNode.removeChild(ingredient);
-		ingredientCount--;
-	}
-
-	function addSearchIngredient() {
-		if (ingredientCount < 3) {
-			var addList = document.getElementById('ingredients');
-			var docstyle = addList.style.display;
-			if (docstyle == 'none') addList.style.display = '';
-
-			ingredientId++;
-			ingredientCount++;
-
-			var text = document.createElement('div');
-			text.id = 'ingredient_' + ingredientId;
-			text.innerHTML = " \
-        					<input id='name" + ingredientId + "' type='text' value='' placeholder='ingredient name' autocomplete='off' required/> \
-        					<input id='remove"+ ingredientId + "' type='button' value='X' />";
-
-			addList.appendChild(text);
-			var i = ingredientId;
-			document.getElementById("remove" + ingredientId).addEventListener("click", function () { removeSearchIngredient(i); }, false);
-			document.getElementById("name" + ingredientId).focus();
-		}
 	}
 
 	function search() {
@@ -130,8 +99,6 @@ document.onreadystatechange = function () {
 
 		var result = document.querySelector('#result');
 		var searchForm = document.querySelector('#search-form');
-		// document.getElementById("show-all").addEventListener("click", showAll, false);
-		// document.getElementById("add-ingredient").addEventListener("click", addSearchIngredient, false);
 
 		welcomeMessage()
 

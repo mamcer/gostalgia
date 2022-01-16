@@ -26,6 +26,16 @@ type Nfile struct {
 	NScanID      int64  `json:"nscan_id"`
 }
 
+type NDirectory struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	Path      string `json:"path"`
+	Size      string `json:"size"`
+	FileCount int64  `json:"file_count"`
+	ParentID  int64  `json:"parent_id"`
+	NScanID   int64  `json:"nscan_id"`
+}
+
 var (
 	db *sql.DB
 )
@@ -147,6 +157,81 @@ func fileController(c *gin.Context) {
 
 }
 
+func directoriesController(c *gin.Context) {
+	id := c.Param("id")
+
+	var nt mysql.NullTime
+	var size int64
+	var files []Nfile
+	var directories []NDirectory
+	var dn string
+	var dp int64
+	if id != "" {
+		err := getDB().QueryRow("SELECT d.name, d.parent_id FROM ndirectory as d WHERE d.id = ?", id).Scan(&dn, &dp)
+		defer closeDB()
+		if err != sql.ErrNoRows {
+			rows, err := getDB().Query("SELECT n.id as ID, n.name, n.date_modified as DateModified, n.size FROM nfile as n WHERE n.ndirectory_id = ?", id)
+			defer closeDB()
+
+			if err != nil {
+				files = nil
+			} else {
+				for rows.Next() {
+					var r Nfile
+					rows.Scan(&r.ID, &r.Name, &nt, &size)
+					r.Size = sizeString(size)
+					if nt.Valid {
+						r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+					}
+
+					files = append(files, r)
+				}
+			}
+
+			rows, err = getDB().Query("SELECT d.id as ID, d.name, d.size FROM ndirectory as d WHERE d.parent_id = ?", id)
+			defer closeDB()
+
+			if err != nil {
+				c.Header("Access-Control-Allow-Origin", "*")
+				c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"name":        dn,
+					"parent_id":   dp,
+					"directories": nil,
+					"files":       files,
+				})
+			} else {
+				for rows.Next() {
+					var d NDirectory
+					rows.Scan(&d.ID, &d.Name, &size)
+					d.Size = sizeString(size)
+
+					directories = append(directories, d)
+				}
+
+				c.Header("Access-Control-Allow-Origin", "*")
+				c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+				c.JSON(http.StatusOK, gin.H{
+					"name":        dn,
+					"parent_id":   dp,
+					"directories": directories,
+					"files":       files,
+				})
+			}
+
+		} else {
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+			c.JSON(http.StatusNotFound, gin.H{
+				"name":        "unknown",
+				"parent_id":   1,
+				"directories": nil,
+				"files":       nil,
+			})
+		}
+	}
+}
+
 func preflight(c *gin.Context) {
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
@@ -162,17 +247,14 @@ func main() {
 	g.GET("/search", search)
 	g.OPTIONS("/search", preflight)
 
-	// g.GET("/recipes/", recipesController)
-	// g.OPTIONS("/recipes/", preflight)
-
 	g.GET("/files/:id", fileController)
 	g.OPTIONS("/files/:id", preflight)
 
 	g.GET("/filescount", filesCount)
 	g.OPTIONS("/filescount", preflight)
 
-	// g.POST("/recipes", createRecipe)
-	// g.OPTIONS("/recipes", preflight)
+	g.GET("/directories/:id", directoriesController)
+	g.OPTIONS("/directories/:id", preflight)
 
 	go func() {
 		http.Handle("/",

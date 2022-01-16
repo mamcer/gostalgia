@@ -30,7 +30,7 @@ document.onreadystatechange = function () {
 					path.innerHTML = `${data.path}`;
 					date_modified.innerHTML = `${data.date_modified}`;
 					size.innerHTML = `${data.size}`;
-					ndirectory_id.innerHTML = `${data.ndirectory_id}`;
+					ndirectory_id.innerHTML = "<a href='dir.html?id=" + data.ndirectory_id + "'>"+data.ndirectory_id+"</a>";
 					nscan_id.innerHTML = `${data.nscan_id}`;
 					location = data.path + "/" + data.name
 					open_file.onclick = open_item
