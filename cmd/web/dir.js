@@ -22,7 +22,12 @@ document.onreadystatechange = function () {
 					var data = JSON.parse(request.responseText);
 
 					dname.innerHTML = data.name;
-					parent.innerHTML = "<a href='dir.html?id=" + data.parent_id + "'>Parent directory</a>"
+					if(data.parent_id == 0) {
+						parent.style.display = "none";
+					} else {
+						parent.style.display = "block";
+						parent.innerHTML = "<a href='dir.html?id=" + data.parent_id + "'>Parent directory</a>"
+					}
 
 					content = '<table style="border-collapse: collapse;border-spacing: 0;">'
 					content += '<thead>'

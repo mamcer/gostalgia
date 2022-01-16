@@ -95,6 +95,7 @@ func search(c *gin.Context) {
 	var size int64
 	query := c.DefaultQuery("q", "Default")
 
+	// files
 	var files []Nfile
 	rows, err := getDB().Query(`SELECT n.id as ID, n.name, n.path, n.size, n.ndirectory_id as NDirectoryID, n.nscan_id as NScanID, n.date_modified as DateModified
 								FROM nfile as n
@@ -103,12 +104,7 @@ func search(c *gin.Context) {
 	defer closeDB()
 
 	if err != nil {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"query": query,
-			"files": nil,
-		})
+		files = nil
 	} else {
 		for rows.Next() {
 			var r Nfile
@@ -120,12 +116,40 @@ func search(c *gin.Context) {
 
 			files = append(files, r)
 		}
+	}
 
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+	// directories
+	var directories []NDirectory
+	rows, err = getDB().Query(`SELECT d.id as ID, d.name, d.size FROM ndirectory as d WHERE lower(d.name) like ?`,
+		strings.ToLower(query)+"%")
+	defer closeDB()
+
+	if err != nil {
+		directories = nil
+	} else {
+		for rows.Next() {
+			var d NDirectory
+			rows.Scan(&d.ID, &d.Name, &size)
+			d.Size = sizeString(size)
+
+			directories = append(directories, d)
+		}
+	}
+
+	// result
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+	if files == nil && directories == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"query":       query,
+			"directories": nil,
+			"files":       nil,
+		})
+	} else {
 		c.JSON(http.StatusOK, gin.H{
-			"query": query,
-			"files": files,
+			"query":       query,
+			"directories": directories,
+			"files":       files,
 		})
 	}
 }

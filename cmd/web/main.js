@@ -49,21 +49,29 @@ document.onreadystatechange = function () {
 				if (request.status === 200) {
 					var data = JSON.parse(request.responseText);
 
+					content = '<table style="border-collapse: collapse;border-spacing: 0;">'
+					content += '<thead>'
+					content += '<tr>'
+					content += '<th>Name</th>'
+					content += '<th>Modified</th>'
+					content += '<th>Size</th>'
+					content += '</tr>'
+					content += '</thead>'
+					content += '<tbody>'
+
+					// directories
+					if (data.directories != null) {
+						for (var i = 0; i < data.directories.length; i++) {
+							content += '<tr>'
+							content += `<td>[<a href="dir.html?id=${data.directories[i].id}">${data.directories[i].name}</a>]</td>`
+							content += "<td></td>"
+							content += `<td>${data.directories[i].size}</td>`
+							content += '</tr>'
+						}
+					}
+
+					// files
 					if (data.files != null) {
-						message.style.display = "none"
-						result.style.display = "block"
-
-						content = `<p>${data.files.length} results for '${data.query}'</p>`;
-						content += '<table style="border-collapse: collapse;border-spacing: 0;">'
-						content += '<thead>'
-						content += '<tr>'
-						content += '<th>Name</th>'
-						content += '<th>Modified</th>'
-						content += '<th>Size</th>'
-						content += '</tr>'
-						content += '</thead>'
-						content += '<tbody>'
-
 						for (var i = 0; i < data.files.length; i++) {
 							content += '<tr>'
 							content += `<td><a href="vip.html?id=${data.files[i].id}">${data.files[i].name}</a></td>`
@@ -71,18 +79,27 @@ document.onreadystatechange = function () {
 							content += `<td>${data.files[i].size}</td>`
 							content += '</tr>'
 						}
-
-						content += '</tbody>'
-						content += '</table>'
-
-						result.innerHTML = content;
-					} else {
-						result.style.display = "none";
-						message.style.display = "block";
-						message.innerHTML = `no results for '${data.query}'`;
 					}
+
+					content += '</tbody>'
+					content += '</table>'
+
+					result.innerHTML = content;
+
+					var rc = 0
+					if (data.files != null) {
+						rc += data.files.length
+					}
+					if (data.directories != null) {
+						rc += data.directories.length
+					}
+
+					message.style.display = "block";
+					message.innerHTML = `<p>${rc} results for '${data.query}'</p>`;
+				} else if (request.status === 404) {
+					message.style.display = "block";
+					message.innerHTML = "no results for '" + query + "'";
 				} else {
-					result.style.display = "none";
 					message.style.display = "block";
 					message.innerHTML = 'there was an error';
 				}
@@ -97,6 +114,7 @@ document.onreadystatechange = function () {
 	if (document.readyState === 'complete') {
 		checkConnection();
 
+		var message = document.querySelector('#message');
 		var result = document.querySelector('#result');
 		var searchForm = document.querySelector('#search-form');
 
