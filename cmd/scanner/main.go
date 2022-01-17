@@ -72,6 +72,9 @@ type nerror struct {
 	retryCount  int64
 }
 
+var vstash string = "stash"
+var pstash string = "../web/stash"
+
 func calculateHash(filePath string) (string, error) {
 	var sha string
 
@@ -176,6 +179,10 @@ func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) in
 	}
 
 	return size
+}
+
+func getFilePath(ns nscan, p string, s string) string {
+	return strings.Replace(p, ns.rootDirectoryPath, s+"/"+fmt.Sprintf("%v", ns.rootDirectoryId), 1)
 }
 
 func scan(paths []string, db *sql.DB) int {
@@ -291,7 +298,7 @@ func scan(paths []string, db *sql.DB) int {
 
 		name := path.Base(p)
 
-		parent := ndirectory{name: name, path: p, size: 0, fileCount: 0, parentID: pid, nscanID: sid}
+		parent := ndirectory{name: name, path: getFilePath(ns, p, vstash), size: 0, fileCount: 0, parentID: pid, nscanID: sid}
 		res, err := stmtDirectory.Exec(parent.name, parent.path, parent.size, parent.fileCount, parent.parentID, parent.nscanID)
 		if err != nil {
 			fmt.Printf("error inserting parent directory '%v': %v\n", parent.path, err)
@@ -360,10 +367,11 @@ func scan(paths []string, db *sql.DB) int {
 					efc += 1
 					fmt.Printf("%+03v%% - [exists] %v\n", (fc+1)*100/tfc, fp)
 				} else {
+					vp := getFilePath(ns, p, vstash)
 					nfile := nfile{
 						name:         fileinfo.Name(),
 						extension:    strings.Trim(filepath.Ext(fileinfo.Name()), "."),
-						path:         p,
+						path:         vp,
 						dateModified: fileinfo.ModTime(),
 						size:         fileinfo.Size(),
 						hash:         h,
@@ -376,6 +384,33 @@ func scan(paths []string, db *sql.DB) int {
 						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file [%v] - %v", nfile.path, err), ns.ID, ns.retryCount)
 						ec += 1
 					}
+
+					// copy file
+					pp := getFilePath(ns, p, pstash)
+					err = os.MkdirAll(pp, 0755)
+					if err != nil {
+						_, _ = stmtError.Exec(fmt.Sprintf("failed to create directory: '%v' - %v", pp, err), ns.ID, ns.retryCount)
+					}
+					ip := path.Join(p, nfile.name)
+					i, err := os.Open(ip)
+					defer i.Close()
+					if err == nil {
+						op := path.Join(pp, nfile.name)
+						o, err := os.Create(op)
+						defer o.Close()
+						if err == nil {
+							_, err = io.Copy(o, i)
+							if err != nil {
+								_, _ = stmtError.Exec(fmt.Sprintf("failed to copy file: '%v' to '%v' - %v", ip, op, err), ns.ID, ns.retryCount)
+							}
+						} else {
+							_, _ = stmtError.Exec(fmt.Sprintf("failed to create file to copy: %v - %v", op, err), ns.ID, ns.retryCount)
+						}
+
+					} else {
+						_, _ = stmtError.Exec(fmt.Sprintf("failed to open file to copy: %v - %v", ip, err), ns.ID, ns.retryCount)
+					}
+
 					fmt.Printf("%+03v%% - [new] %v\n", (fc+1)*100/tfc, fp)
 				}
 
