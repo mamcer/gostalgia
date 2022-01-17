@@ -112,11 +112,12 @@ func sizeString(v int64) string {
 func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) int64 {
 	var size int64 = 0
 
+	// directory ids
+	var dids []int64
 	rows, err := db.Query("SELECT `id` FROM `ndirectory` WHERE `parent_id` = ?", rd)
 	if err != nil {
 		panic(err)
 	}
-	defer rows.Close()
 	for rows.Next() {
 		var id int64
 		err = rows.Scan(&id)
@@ -124,7 +125,12 @@ func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) in
 			panic(err)
 		}
 
-		size += updateDirectorySize(db, id, stmtUpdateDirectory)
+		dids = append(dids, id)
+	}
+	rows.Close()
+
+	for _, did := range dids {
+		size += updateDirectorySize(db, did, stmtUpdateDirectory)
 	}
 
 	var nfsizes []int64
@@ -183,6 +189,33 @@ func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) in
 
 func getFilePath(ns nscan, p string, s string) string {
 	return strings.Replace(p, ns.rootDirectoryPath, s+"/"+fmt.Sprintf("%v", ns.rootDirectoryId), 1)
+}
+
+func copyFile(ns nscan, p string, fn string, stmtError *sql.Stmt) {
+	pp := getFilePath(ns, p, pstash)
+	err := os.MkdirAll(pp, 0755)
+	if err != nil {
+		_, _ = stmtError.Exec(fmt.Sprintf("failed to create directory: '%v' - %v", pp, err), ns.ID, ns.retryCount)
+	}
+	ip := path.Join(p, fn)
+	i, err := os.Open(ip)
+	defer i.Close()
+	if err == nil {
+		op := path.Join(pp, fn)
+		o, err := os.Create(op)
+		defer o.Close()
+		if err == nil {
+			_, err = io.Copy(o, i)
+			if err != nil {
+				_, _ = stmtError.Exec(fmt.Sprintf("failed to copy file: '%v' to '%v' - %v", ip, op, err), ns.ID, ns.retryCount)
+			}
+		} else {
+			_, _ = stmtError.Exec(fmt.Sprintf("failed to create file to copy: %v - %v", op, err), ns.ID, ns.retryCount)
+		}
+
+	} else {
+		_, _ = stmtError.Exec(fmt.Sprintf("failed to open file to copy: %v - %v", ip, err), ns.ID, ns.retryCount)
+	}
 }
 
 func scan(paths []string, db *sql.DB) int {
@@ -386,30 +419,7 @@ func scan(paths []string, db *sql.DB) int {
 					}
 
 					// copy file
-					pp := getFilePath(ns, p, pstash)
-					err = os.MkdirAll(pp, 0755)
-					if err != nil {
-						_, _ = stmtError.Exec(fmt.Sprintf("failed to create directory: '%v' - %v", pp, err), ns.ID, ns.retryCount)
-					}
-					ip := path.Join(p, nfile.name)
-					i, err := os.Open(ip)
-					defer i.Close()
-					if err == nil {
-						op := path.Join(pp, nfile.name)
-						o, err := os.Create(op)
-						defer o.Close()
-						if err == nil {
-							_, err = io.Copy(o, i)
-							if err != nil {
-								_, _ = stmtError.Exec(fmt.Sprintf("failed to copy file: '%v' to '%v' - %v", ip, op, err), ns.ID, ns.retryCount)
-							}
-						} else {
-							_, _ = stmtError.Exec(fmt.Sprintf("failed to create file to copy: %v - %v", op, err), ns.ID, ns.retryCount)
-						}
-
-					} else {
-						_, _ = stmtError.Exec(fmt.Sprintf("failed to open file to copy: %v - %v", ip, err), ns.ID, ns.retryCount)
-					}
+					copyFile(ns, p, nfile.name, stmtError)
 
 					fmt.Printf("%+03v%% - [new] %v\n", (fc+1)*100/tfc, fp)
 				}

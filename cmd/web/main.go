@@ -92,7 +92,7 @@ func sizeString(v int64) string {
 		return fmt.Sprintf("%v kB", strconv.FormatFloat(r, 'f', 1, 64))
 	}
 
-	return fmt.Sprintf("%v", strconv.FormatFloat(r, 'f', 1, 64))
+	return fmt.Sprintf("%v Bytes", strconv.FormatFloat(r, 'f', 1, 64))
 }
 
 func search(c *gin.Context) {
