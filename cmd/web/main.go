@@ -77,12 +77,17 @@ func filesCount(c *gin.Context) {
 
 func sizeString(v int64) string {
 	r := float64(v)
-	u := 1000.0
+	u := 1024.0
 	if v > int64(u) {
 		r = r / u
 		if r > u {
 			r = r / u
-			return fmt.Sprintf("%v MB", strconv.FormatFloat(r, 'f', 1, 64))
+			if r > u {
+				r = r / u
+				return fmt.Sprintf("%v GB", strconv.FormatFloat(r, 'f', 1, 64))
+			} else {
+				return fmt.Sprintf("%v MB", strconv.FormatFloat(r, 'f', 1, 64))
+			}
 		}
 		return fmt.Sprintf("%v kB", strconv.FormatFloat(r, 'f', 1, 64))
 	}

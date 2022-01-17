@@ -25,10 +25,10 @@ document.onreadystatechange = function () {
 					var data = JSON.parse(request.responseText);
 
 					if (data.message !== 'Not Found') {
-						footer.innerHTML = `searching over ${data.count} files`
+						message.innerHTML = `searching over ${data.count} files`
 					}
 				} else {
-					footer.innerHTML = 'not found'
+					message.innerHTML = 'not found'
 				}
 			}
 		}
