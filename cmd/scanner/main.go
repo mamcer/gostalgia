@@ -413,7 +413,7 @@ func scan(root string, sname string, db *sql.DB) int {
 					}
 
 					efc += 1
-					fmt.Printf("%+03v%% - [exists] %v\n", (fc+1)*100/tfc, fp)
+					fmt.Printf("%.2f%% - [exists] %v\n", (float64(fc)+1)*100/float64(tfc), fp)
 				} else {
 					vp := getFilePath(ns, p, vstash)
 					nfile := nfile{
@@ -436,7 +436,7 @@ func scan(root string, sname string, db *sql.DB) int {
 					// copy file
 					copyFile(ns, p, nfile.name, stmtError)
 
-					fmt.Printf("%+03v%% - [new] %v\n", (fc+1)*100/tfc, fp)
+					fmt.Printf("%.2f%% - [new] %v\n", (float64(fc)+1)*100/float64(tfc), fp)
 				}
 
 				fc++

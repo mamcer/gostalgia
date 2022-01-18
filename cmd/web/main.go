@@ -37,22 +37,14 @@ type NDirectory struct {
 	NScanID      int64  `json:"nscan_id"`
 }
 
-var (
-	db *sql.DB
-)
-
 func getDB() *sql.DB {
 	var err error
-	db, err = sql.Open("mysql", "root:root@tcp(localhost:3306)/nostalgia")
+	db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/nostalgia")
 	if err != nil {
 		panic(err.Error())
 	}
 
 	return db
-}
-
-func closeDB() {
-	db.Close()
 }
 
 func ping(c *gin.Context) {
@@ -66,8 +58,9 @@ func ping(c *gin.Context) {
 
 func filesCount(c *gin.Context) {
 	count := 0
-	getDB().QueryRow("SELECT count(id) from nfile").Scan(&count)
-	defer closeDB()
+	db := getDB()
+	db.QueryRow("SELECT count(id) from nfile").Scan(&count)
+	defer db.Close()
 
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
@@ -103,11 +96,13 @@ func search(c *gin.Context) {
 
 	// files
 	var files []Nfile
-	rows, err := getDB().Query(`SELECT n.id as ID, n.name, n.path, n.size, n.ndirectory_id as NDirectoryID, n.nscan_id as NScanID, n.date_modified as DateModified
-								FROM nfile as n
-								WHERE lower(n.name) like ?`,
+
+	db := getDB()
+	rows, err := db.Query(`SELECT n.id as ID, n.name, n.path, n.size, n.ndirectory_id as NDirectoryID, n.nscan_id as NScanID, n.date_modified as DateModified
+	FROM nfile as n
+	WHERE lower(n.name) like ?`,
 		strings.ToLower(query)+"%")
-	defer closeDB()
+	defer db.Close()
 
 	if err != nil {
 		files = nil
@@ -126,9 +121,10 @@ func search(c *gin.Context) {
 
 	// directories
 	var directories []NDirectory
-	rows, err = getDB().Query(`SELECT d.id as ID, d.name, d.date_modified as DateModified, d.size FROM ndirectory as d WHERE lower(d.name) like ?`,
+	db2 := getDB()
+	rows, err = db2.Query(`SELECT d.id as ID, d.name, d.date_modified as DateModified, d.size FROM ndirectory as d WHERE lower(d.name) like ?`,
 		strings.ToLower(query)+"%")
-	defer closeDB()
+	defer db2.Close()
 
 	if err != nil {
 		directories = nil
@@ -170,8 +166,10 @@ func fileController(c *gin.Context) {
 	var size int64
 	var r Nfile
 	if id != "" {
-		err := getDB().QueryRow("SELECT n.id as ID, n.name, n.path, n.size, n.ndirectory_id as NDirectoryID, n.nscan_id as NScanID, n.date_modified as DateModified FROM nfile as n WHERE n.id = ?", id).Scan(&r.ID, &r.Name, &r.Path, &size, &r.NDirectoryID, &r.NScanID, &nt)
-		defer closeDB()
+		db := getDB()
+		err := db.QueryRow("SELECT n.id as ID, n.name, n.path, n.size, n.ndirectory_id as NDirectoryID, n.nscan_id as NScanID, n.date_modified as DateModified FROM nfile as n WHERE n.id = ?", id).Scan(&r.ID, &r.Name, &r.Path, &size, &r.NDirectoryID, &r.NScanID, &nt)
+		defer db.Close()
+
 		if err != sql.ErrNoRows {
 			r.Size = sizeString(size)
 			if nt.Valid {
@@ -200,11 +198,13 @@ func directoriesController(c *gin.Context) {
 	var dn string
 	var dp int64
 	if id != "" {
-		err := getDB().QueryRow("SELECT d.name, d.parent_id FROM ndirectory as d WHERE d.id = ?", id).Scan(&dn, &dp)
-		defer closeDB()
+		db1 := getDB()
+		err := db1.QueryRow("SELECT d.name, d.parent_id FROM ndirectory as d WHERE d.id = ?", id).Scan(&dn, &dp)
+		defer db1.Close()
 		if err != sql.ErrNoRows {
-			rows, err := getDB().Query("SELECT n.id as ID, n.name, n.date_modified as DateModified, n.size FROM nfile as n WHERE n.ndirectory_id = ?", id)
-			defer closeDB()
+			db2 := getDB()
+			rows, err := db2.Query("SELECT n.id as ID, n.name, n.date_modified as DateModified, n.size FROM nfile as n WHERE n.ndirectory_id = ?", id)
+			defer db2.Close()
 
 			if err != nil {
 				files = nil
@@ -221,8 +221,9 @@ func directoriesController(c *gin.Context) {
 				}
 			}
 
-			rows, err = getDB().Query("SELECT d.id as ID, d.name, d.date_modified as DateModified, d.size FROM ndirectory as d WHERE d.parent_id = ?", id)
-			defer closeDB()
+			db3 := getDB()
+			rows, err = db3.Query("SELECT d.id as ID, d.name, d.date_modified as DateModified, d.size FROM ndirectory as d WHERE d.parent_id = ?", id)
+			defer db3.Close()
 
 			if err != nil {
 				c.Header("Access-Control-Allow-Origin", "*")
