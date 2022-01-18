@@ -24,6 +24,7 @@ CREATE TABLE `ndirectory` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(255) NOT NULL,
     `path` VARCHAR(260) NOT NULL,
+    `date_modified` DATETIME NOT NULL,
     `size` BIGINT UNSIGNED NOT NULL,
     `file_count` INT UNSIGNED NOT NULL,
     `parent_id` BIGINT UNSIGNED NOT NULL,
@@ -31,7 +32,8 @@ CREATE TABLE `ndirectory` (
     PRIMARY KEY (`id`)
 ) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
 
-CREATE INDEX `idx_nfile_name` ON `ndirectory`(`name`);
+CREATE INDEX `idx_ndirectory_name` ON `ndirectory`(`name`);
+CREATE INDEX `idx_ndirectory_date_modified` ON `ndirectory`(`date_modified`);
 
 -- nscan
 CREATE TABLE `nscan` (
@@ -70,6 +72,7 @@ CREATE TABLE `ntag` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(255) NOT NULL,
     `nfile_id` BIGINT UNSIGNED NOT NULL,
+    `ndirectory_id` BIGINT UNSIGNED NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
 
@@ -131,6 +134,11 @@ ADD CONSTRAINT `fk_ntag_nfile`
 FOREIGN KEY (`nfile_id`) 
 REFERENCES `nfile`(`id`);
 
+ALTER TABLE `ntag` 
+ADD CONSTRAINT `fk_ntag_ndirectory` 
+FOREIGN KEY (`ndirectory_id`) 
+REFERENCES `ndirectory`(`id`);
+
 -- insert default values
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -145,6 +153,7 @@ ALTER TABLE `nostalgia`.`ntag` AUTO_INCREMENT = 0;
 INSERT INTO `nostalgia`.`ndirectory`
 (`name`,
 `path`,
+`date_modified`,
 `size`,
 `file_count`,
 `parent_id`,
@@ -153,6 +162,7 @@ VALUES
 (
 "/",
 "/",
+now(),
 0,
 0,
 0,

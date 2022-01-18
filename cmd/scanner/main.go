@@ -37,13 +37,15 @@ type nscan struct {
 }
 
 type ndirectory struct {
-	ID        int64
-	name      string
-	path      string
-	size      int64
-	fileCount int64
-	parentID  int64
-	nscanID   int64
+	ID           int64
+	name         string
+	path         string
+	size         int64
+	fileCount    int64
+	parentID     int64
+	nscanID      int64
+	fpath        string
+	dateModified time.Time
 }
 
 type nfile struct {
@@ -101,12 +103,17 @@ func sizeString(v int64) string {
 		r = r / u
 		if r > u {
 			r = r / u
-			return fmt.Sprintf("%v MB", strconv.FormatFloat(r, 'f', 1, 64))
+			if r > u {
+				r = r / u
+				return fmt.Sprintf("%v GB", strconv.FormatFloat(r, 'f', 1, 64))
+			} else {
+				return fmt.Sprintf("%v MB", strconv.FormatFloat(r, 'f', 1, 64))
+			}
 		}
 		return fmt.Sprintf("%v kB", strconv.FormatFloat(r, 'f', 1, 64))
 	}
 
-	return fmt.Sprintf("%v", strconv.FormatFloat(r, 'f', 1, 64))
+	return fmt.Sprintf("%v Bytes", strconv.FormatFloat(r, 'f', 1, 64))
 }
 
 func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) int64 {
@@ -218,7 +225,7 @@ func copyFile(ns nscan, p string, fn string, stmtError *sql.Stmt) {
 	}
 }
 
-func scan(paths []string, db *sql.DB) int {
+func scan(root string, sname string, db *sql.DB) int {
 	start := time.Now()
 	fmt.Printf("scan process started\n")
 
@@ -239,7 +246,7 @@ func scan(paths []string, db *sql.DB) int {
 	}
 
 	// ndirectory insert
-	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `size`, `file_count`, `parent_id`, `nscan_id`) VALUES (?, ?, ?, ?, ?, ?)")
+	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `date_modified`, `size`, `file_count`, `parent_id`, `nscan_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	defer stmtDirectory.Close()
 	if err != nil {
 		fmt.Printf("error preparing ndirectory insert: %v\n", err)
@@ -279,7 +286,7 @@ func scan(paths []string, db *sql.DB) int {
 	}
 
 	// ntag insert
-	stmtTag, err := db.Prepare("INSERT INTO `ntag` (`name`, `nfile_id`) VALUES (?, ?)")
+	stmtTag, err := db.Prepare("INSERT INTO `ntag` (`name`, `nfile_id`, `ndirectory_id`) VALUES (?, ?, ?)")
 	defer stmtTag.Close()
 	if err != nil {
 		fmt.Printf("error preparing ntag insert: %v\n", err)
@@ -287,7 +294,7 @@ func scan(paths []string, db *sql.DB) int {
 	}
 
 	// insert scan
-	ns := nscan{dateCreated: time.Now(), status: InProgress, rootDirectoryPath: paths[0], retryCount: 0}
+	ns := nscan{dateCreated: time.Now(), status: InProgress, rootDirectoryPath: root, retryCount: 0}
 	res, err := stmtScan.Exec(ns.dateCreated, ns.status, ns.rootDirectoryPath, ns.retryCount)
 	if err != nil {
 		fmt.Printf("error inserting nscan: %v\n", err)
@@ -299,7 +306,7 @@ func scan(paths []string, db *sql.DB) int {
 
 	p := ""
 	var tfc int64 = 0
-	ps := []string{paths[0]}
+	ps := []string{root}
 	for i := 0; i < len(ps); i++ {
 		p = ps[i]
 
@@ -324,15 +331,20 @@ func scan(paths []string, db *sql.DB) int {
 	ec := 0
 	var pid int64 = 1
 	var rid int64 = 1
-	for i := 0; i < len(paths); i++ {
-		p = paths[i]
+
+	fileStat, err := os.Stat(root)
+	if err != nil {
+		_, _ = stmtError.Exec(fmt.Sprintf("cannot stats root directory: '%v' - %v", root, err), ns.ID, ns.retryCount)
+	}
+
+	var ndirs []ndirectory = []ndirectory{{name: sname, path: getFilePath(ns, root, vstash), fpath: root, dateModified: fileStat.ModTime(), size: 0, fileCount: 0, parentID: pid, nscanID: sid}}
+	for i := 0; i < len(ndirs); i++ {
+		p = ndirs[i].fpath
 		dfc := 0
 		var ds int64
 
-		name := path.Base(p)
-
-		parent := ndirectory{name: name, path: getFilePath(ns, p, vstash), size: 0, fileCount: 0, parentID: pid, nscanID: sid}
-		res, err := stmtDirectory.Exec(parent.name, parent.path, parent.size, parent.fileCount, parent.parentID, parent.nscanID)
+		parent := ndirs[i]
+		res, err := stmtDirectory.Exec(parent.name, parent.path, parent.dateModified, parent.size, parent.fileCount, parent.parentID, parent.nscanID)
 		if err != nil {
 			fmt.Printf("error inserting parent directory '%v': %v\n", parent.path, err)
 			_, _ = stmtError.Exec(fmt.Sprintf("error inserting parent directory '%v' - %v", parent.path, err), ns.ID, ns.retryCount)
@@ -364,8 +376,11 @@ func scan(paths []string, db *sql.DB) int {
 		for _, fileinfo := range files {
 			fp := path.Join(p, fileinfo.Name())
 			if fileinfo.IsDir() {
-				paths = append(paths, fp)
-				dc++
+				if fileinfo.Name() != "." {
+					d := ndirectory{name: fileinfo.Name(), path: getFilePath(ns, fp, vstash), fpath: fp, dateModified: fileinfo.ModTime(), size: 0, fileCount: 0, parentID: pid, nscanID: sid}
+					ndirs = append(ndirs, d)
+					dc++
+				}
 			} else {
 				h, _ := calculateHash(fp)
 
@@ -388,7 +403,7 @@ func scan(paths []string, db *sql.DB) int {
 						db.QueryRow("SELECT count(`id`) FROM `ntag` WHERE `name` = ? and nfile_id = ?", tn, efi).Scan(&et)
 
 						if et == 0 {
-							_, err = stmtTag.Exec(tn, efi)
+							_, err = stmtTag.Exec(tn, efi, parent.ID)
 							if err != nil {
 								fmt.Printf("error inserting tag: %v '%v' -  %v\n", efi, tn, err)
 								_, _ = stmtError.Exec(fmt.Sprintf("error inserting tag: %v '%v' -  %v\n", efi, tn, err), ns.ID, ns.retryCount)
@@ -485,7 +500,11 @@ func main() {
 						if err == nil {
 							if k == "\n" || k == "y\n" || k == "Y\n" {
 								out = true
-								_ = scan([]string{p}, db)
+								sn := path.Base(p)
+								if len(os.Args) > 3 && os.Args[3] != "" {
+									sn = os.Args[3]
+								}
+								_ = scan(p, sn, db)
 							} else if k == "n\n" || k == "N\n" {
 								out = true
 							}
@@ -494,7 +513,11 @@ func main() {
 						}
 					}
 				} else {
-					_ = scan([]string{p}, db)
+					sn := path.Base(p)
+					if len(os.Args) > 3 && os.Args[3] != "" {
+						sn = os.Args[3]
+					}
+					_ = scan(p, sn, db)
 				}
 			} else {
 				fmt.Printf("you must provide a valid path to scan\n")

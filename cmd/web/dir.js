@@ -43,7 +43,7 @@ document.onreadystatechange = function () {
 						for (var i = 0; i < data.directories.length; i++) {
 							content += '<tr>'
 							content += `<td>[<a href="dir.html?id=${data.directories[i].id}">${data.directories[i].name}</a>]</td>`
-							content += `<td></td>`
+							content += `<td>${data.directories[i].date_modified}</td>`
 							content += `<td>${data.directories[i].size}</td>`
 							content += '</tr>'
 						}

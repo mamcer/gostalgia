@@ -27,13 +27,14 @@ type Nfile struct {
 }
 
 type NDirectory struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	Path      string `json:"path"`
-	Size      string `json:"size"`
-	FileCount int64  `json:"file_count"`
-	ParentID  int64  `json:"parent_id"`
-	NScanID   int64  `json:"nscan_id"`
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	Path         string `json:"path"`
+	DateModified string `json:"date_modified"`
+	Size         string `json:"size"`
+	FileCount    int64  `json:"file_count"`
+	ParentID     int64  `json:"parent_id"`
+	NScanID      int64  `json:"nscan_id"`
 }
 
 var (
@@ -77,7 +78,7 @@ func filesCount(c *gin.Context) {
 
 func sizeString(v int64) string {
 	r := float64(v)
-	u := 1024.0
+	u := 1000.0
 	if v > int64(u) {
 		r = r / u
 		if r > u {
@@ -125,7 +126,7 @@ func search(c *gin.Context) {
 
 	// directories
 	var directories []NDirectory
-	rows, err = getDB().Query(`SELECT d.id as ID, d.name, d.size FROM ndirectory as d WHERE lower(d.name) like ?`,
+	rows, err = getDB().Query(`SELECT d.id as ID, d.name, d.date_modified as DateModified, d.size FROM ndirectory as d WHERE lower(d.name) like ?`,
 		strings.ToLower(query)+"%")
 	defer closeDB()
 
@@ -134,8 +135,11 @@ func search(c *gin.Context) {
 	} else {
 		for rows.Next() {
 			var d NDirectory
-			rows.Scan(&d.ID, &d.Name, &size)
+			rows.Scan(&d.ID, &d.Name, &nt, &size)
 			d.Size = sizeString(size)
+			if nt.Valid {
+				d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+			}
 
 			directories = append(directories, d)
 		}
@@ -217,7 +221,7 @@ func directoriesController(c *gin.Context) {
 				}
 			}
 
-			rows, err = getDB().Query("SELECT d.id as ID, d.name, d.size FROM ndirectory as d WHERE d.parent_id = ?", id)
+			rows, err = getDB().Query("SELECT d.id as ID, d.name, d.date_modified as DateModified, d.size FROM ndirectory as d WHERE d.parent_id = ?", id)
 			defer closeDB()
 
 			if err != nil {
@@ -232,8 +236,11 @@ func directoriesController(c *gin.Context) {
 			} else {
 				for rows.Next() {
 					var d NDirectory
-					rows.Scan(&d.ID, &d.Name, &size)
+					rows.Scan(&d.ID, &d.Name, &nt, &size)
 					d.Size = sizeString(size)
+					if nt.Valid {
+						d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+					}
 
 					directories = append(directories, d)
 				}
