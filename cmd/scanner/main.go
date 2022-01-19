@@ -195,7 +195,7 @@ func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) in
 }
 
 func getFilePath(ns nscan, p string, s string) string {
-	return strings.Replace(p, ns.rootDirectoryPath, s+"/"+fmt.Sprintf("%v", ns.rootDirectoryId), 1)
+	return strings.Replace(p, ns.rootDirectoryPath, path.Join(s, fmt.Sprintf("%v", ns.ID)), 1)
 }
 
 func copyFile(ns nscan, p string, fn string, stmtError *sql.Stmt) {
