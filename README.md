@@ -32,7 +32,7 @@ nerror
 mac format Mib
 
     -- unique files size (size in disk)
-    select sum(size)/1000/1000 from nfile
+    select sum(size)/1024/1024/1024/1024 from nfile
 
     -- repeated files size
-    select sum(n.size)/1000/1000 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
+    select sum(n.size)/1024/1024/1024 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
