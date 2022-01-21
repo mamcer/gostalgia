@@ -36,3 +36,8 @@ mac format Mib
 
     -- repeated files size
     select sum(n.size)/1000/1000 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
+
+## Link
+
+    ln -s /media/darkforce/stash/ stash
+
