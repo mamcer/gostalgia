@@ -75,7 +75,7 @@ type nerror struct {
 }
 
 var vstash string = "stash"
-var pstash string = "../web/stash"
+var pstash string = "/media/darkforce/stash"
 
 func calculateHash(filePath string) (string, error) {
 	var sha string
@@ -374,7 +374,7 @@ func scan(root string, sname string, db *sql.DB) int {
 		}
 
 		for _, fileinfo := range files {
-			fp := path.Join(p, fileinfo.Name())
+			fp := p + "/" + fileinfo.Name()
 			if fileinfo.IsDir() {
 				if fileinfo.Name() != "." {
 					d := ndirectory{name: fileinfo.Name(), path: getFilePath(ns, fp, vstash), fpath: fp, dateModified: fileinfo.ModTime(), size: 0, fileCount: 0, parentID: pid, nscanID: sid}

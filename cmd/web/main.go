@@ -297,7 +297,7 @@ func main() {
 		http.Handle("/",
 			http.StripPrefix("/",
 				http.FileServer(http.Dir("./"))))
-		log.Fatal(http.ListenAndServe(":80", nil))
+		log.Fatal(http.ListenAndServe(":8080", nil))
 	}()
 
 	g.Run(":5000")
