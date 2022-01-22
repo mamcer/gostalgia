@@ -35,6 +35,12 @@ mac format Mib
     select sum(size)/1024/1024/1024/1024 from nfile
 
     -- repeated files size
+    select sum(n.size)/1000/1000 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
+
+## Link
+
+    ln -s /media/darkforce/stash/ stash
+
     select sum(n.size)/1024/1024/1024 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
 
 ## Times
