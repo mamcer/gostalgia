@@ -37,6 +37,21 @@ mac format Mib
     -- repeated files size
     select sum(n.size)/1000/1000 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
 
+
+    SELECT id, name, hash, size
+    FROM nostalgia.nfile as n
+    WHERE hash IN (SELECT hash FROM nostalgia.nfile WHERE id != n.id)
+    
+    select c.hash, c.s, n.size
+    from
+    (
+    SELECT hash, sum(size) as s
+    FROM nostalgia.nfile as n
+    WHERE hash IN (SELECT hash FROM nostalgia.nfile WHERE id != n.id) group by hash) as c, nfile as n
+    WHERE
+    n.hash = c.hash
+    order by s desc
+
 ## Link
 
     ln -s /media/darkforce/stash/ stash
