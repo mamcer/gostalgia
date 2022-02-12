@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -37,9 +39,19 @@ type NDirectory struct {
 	NScanID      int64  `json:"nscan_id"`
 }
 
+// Configuration container
+type Configuration struct {
+	ApiPort          string
+	WebPort          string
+	DBDriverName     string
+	DBDataSourceName string
+}
+
+var config Configuration
+
 func getDB() *sql.DB {
 	var err error
-	db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/nostalgia")
+	db, err := sql.Open(config.DBDriverName, config.DBDataSourceName)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -276,6 +288,18 @@ func preflight(c *gin.Context) {
 }
 
 func main() {
+	f, err := os.Open("config.json")
+	if err != nil {
+		fmt.Printf("error opening config.json: %v", err)
+		return
+	}
+	decoder := json.NewDecoder(f)
+	err = decoder.Decode(&config)
+	if err != nil {
+		fmt.Printf("error decoding config.json: %v", err)
+		return
+	}
+
 	g := gin.Default()
 
 	g.GET("/ping", ping)
@@ -297,8 +321,8 @@ func main() {
 		http.Handle("/",
 			http.StripPrefix("/",
 				http.FileServer(http.Dir("./"))))
-		log.Fatal(http.ListenAndServe(":8080", nil))
+		log.Fatal(http.ListenAndServe(":"+config.WebPort, nil))
 	}()
 
-	g.Run(":5000")
+	g.Run(":" + config.ApiPort)
 }

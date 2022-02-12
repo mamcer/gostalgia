@@ -56,6 +56,8 @@ mac format Mib
 
     ln -s /media/darkforce/stash/ stash
 
+    ln -s /mnt/homunculus/pictures stash/2
+
     select sum(n.size)/1024/1024/1024 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
 
 ## Times

@@ -15,7 +15,7 @@ document.onreadystatechange = function () {
 		var id = getParameterByName('id');
 
 		var request = new XMLHttpRequest();
-		request.open('GET', 'http://localhost:5000/directories/' + id);
+		request.open('GET', config.api+'/directories/' + id);
 		request.onreadystatechange = function () {
 			if (request.readyState == 4) {
 				if (request.status === 200) {

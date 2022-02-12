@@ -2,7 +2,7 @@ document.onreadystatechange = function () {
 
 	function checkConnection() {
 		var request = new XMLHttpRequest();
-		request.open('GET', 'http://localhost:5000/ping');
+		request.open('GET', config.api+'/ping');
 		request.onreadystatechange = function () {
 			if (request.readyState == 4) {
 				if (request.status != 200) {
@@ -18,7 +18,7 @@ document.onreadystatechange = function () {
 
 	function welcomeMessage() {
 		var request = new XMLHttpRequest();
-		request.open('GET', 'http://localhost:5000/filescount');
+		request.open('GET', config.api+'/filescount');
 		request.onreadystatechange = function () {
 			if (request.readyState == 4) {
 				if (request.status === 200) {
@@ -43,7 +43,7 @@ document.onreadystatechange = function () {
 		var query = document.querySelector('#search').value;
 		var request = new XMLHttpRequest();
 
-		request.open('GET', 'http://localhost:5000/search?q=' + query);
+		request.open('GET', config.api+'/search?q=' + query);
 		request.onreadystatechange = function () {
 			if (request.readyState == 4) {
 				if (request.status === 200) {

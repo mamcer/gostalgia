@@ -20,7 +20,7 @@ document.onreadystatechange = function () {
 		var id = getParameterByName('id');
 
 		var request = new XMLHttpRequest();
-		request.open('GET', 'http://localhost:5000/files/' + id);
+		request.open('GET', config.api+'/files/' + id);
 		request.onreadystatechange = function () {
 			if (request.readyState == 4) {
 				if (request.status === 200) {

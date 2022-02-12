@@ -1,0 +1,6 @@
+{
+    "ApiPort": "3001",
+    "WebPort": "3000",
+	"DBDriverName":"mysql",
+	"DBDataSourceName": "root:root@tcp(localhost:3306)/nostalgia"
+}
