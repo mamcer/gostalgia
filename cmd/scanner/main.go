@@ -25,53 +25,53 @@ const (
 )
 
 type nscan struct {
-	ID                int64
-	dateCreated       time.Time
-	duration          int64
-	fileCount         int64
-	directoryCount    int64
-	status            int64
-	rootDirectoryPath string
-	rootDirectoryId   int64
-	retryCount        int64
+	ID                int64     // scan id
+	dateCreated       time.Time // scan creation date
+	duration          int64     // scan duration (in milliseconds)
+	fileCount         int64     // file scan count
+	directoryCount    int64     // directory scan count
+	status            int64     // scan status = done, inprogress, error
+	rootDirectoryPath string    // scan root directory path
+	rootDirectoryId   int64     // scan directory id
+	retryCount        int64     // scan retry count
 }
 
 type ndirectory struct {
-	ID           int64
-	name         string
-	path         string
-	size         int64
-	fileCount    int64
-	parentID     int64
-	nscanID      int64
-	fpath        string
-	dateModified time.Time
+	ID           int64     // directory id
+	name         string    // directory name
+	path         string    // directory path
+	size         int64     // directory size (in bytes)
+	fileCount    int64     // directory file count
+	parentID     int64     // parent directory id
+	nscanID      int64     // scan id
+	fpath        string    // current file path
+	dateModified time.Time // date modified
 }
 
 type nfile struct {
-	ID           int64
-	name         string
-	extension    string
-	path         string
-	dateModified time.Time
-	size         int64
-	hash         string
-	ndirectoryID int64
-	nscanID      int64
+	ID           int64     // file id
+	name         string    //file name
+	extension    string    //file extension
+	path         string    // file path
+	dateModified time.Time // file date modified
+	size         int64     // file size (in bytes)
+	hash         string    // file hash
+	ndirectoryID int64     // file directory id
+	nscanID      int64     // scan id
 }
 
 type nfilescan struct {
-	ID           int64
-	nfileID      int64
-	ndirectoryID int64
-	nscanID      int64
+	ID           int64 // file scan id
+	nfileID      int64 // file id
+	ndirectoryID int64 // directory id
+	nscanID      int64 // scan id
 }
 
 type nerror struct {
-	ID          int64
-	description string
-	nscanID     int64
-	retryCount  int64
+	ID          int64  // error id
+	description string // error description
+	nscanID     int64  // scan id
+	retryCount  int64  // retry count
 }
 
 var vstash string = "stash"

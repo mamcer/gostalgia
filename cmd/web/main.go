@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/gin-gonic/gin"
@@ -104,16 +105,63 @@ func sizeString(v int64) string {
 func search(c *gin.Context) {
 	var nt mysql.NullTime
 	var size int64
-	query := c.DefaultQuery("q", "Default")
+	query := c.DefaultQuery("q", "mario")
+	if query == "" {
+		query = "mario"
+	}
+
+	t := c.DefaultQuery("type", "any")
+
+	layout := "2006-01-02"
+
+	a := c.Query("after")
+	after, _ := time.Parse(layout, "1000-01-01")
+	if a != "" {
+		after, _ = time.Parse(layout, a)
+	}
+
+	b := c.Query("before")
+	before, _ := time.Parse(layout, "9999-12-31")
+	if b != "" {
+		before, _ = time.Parse(layout, b)
+	}
+
+	fmt.Printf("query: '%v', type: '%v', after: '%v', before: '%v'\n", query, t, after, before)
 
 	// files
 	var files []Nfile
 
 	db := getDB()
-	rows, err := db.Query(`SELECT n.id as ID, n.name, n.path, n.size, n.ndirectory_id as NDirectoryID, n.nscan_id as NScanID, n.date_modified as DateModified
-	FROM nfile as n
-	WHERE lower(n.name) like ?`,
-		strings.ToLower(query)+"%")
+
+	var sq = `SELECT 	n.id as ID, 
+							n.name, 
+							n.Extension, 
+							n.path, 
+							n.size, 
+							n.ndirectory_id as NDirectoryID, 
+							n.nscan_id as NScanID, 
+							n.date_modified as DateModified 
+				FROM nfile as n 
+				WHERE lower(n.name) like ?`
+	switch t {
+	case "image":
+		sq += " and n.extension in ('jpeg', 'png', 'jpg', 'bmp')"
+	case "doc":
+		sq += " and n.extension in ('doc', 'docx', 'odt')"
+	case "sheet":
+		sq += " and n.extension in ('xls', 'xlsx', 'ods')"
+	case "audio":
+		sq += " and n.extension in ('mp3', 'ogg', 'wma', 'arm')"
+	case "video":
+		sq += " and n.extension in ('mp4', 'mkv', 'avi', 'wmv')"
+	case "zip":
+		sq += " and n.extension in ('zip', 'rar', '7z', 'gz')"
+	}
+
+	sq += " and n.date_modified between ? and ?"
+
+	rows, err := db.Query(sq,
+		"%"+strings.ToLower(query)+"%", after, before)
 	defer db.Close()
 
 	if err != nil {
@@ -121,7 +169,7 @@ func search(c *gin.Context) {
 	} else {
 		for rows.Next() {
 			var r Nfile
-			rows.Scan(&r.ID, &r.Name, &r.Path, &size, &r.NDirectoryID, &r.NScanID, &nt)
+			rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &size, &r.NDirectoryID, &r.NScanID, &nt)
 			r.Size = sizeString(size)
 			if nt.Valid {
 				r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
@@ -133,25 +181,25 @@ func search(c *gin.Context) {
 
 	// directories
 	var directories []NDirectory
-	db2 := getDB()
-	rows, err = db2.Query(`SELECT d.id as ID, d.name, d.date_modified as DateModified, d.size FROM ndirectory as d WHERE lower(d.name) like ?`,
-		strings.ToLower(query)+"%")
-	defer db2.Close()
+	// db2 := getDB()
+	// rows, err = db2.Query(`SELECT d.id as ID, d.name, d.date_modified as DateModified, d.size FROM ndirectory as d WHERE lower(d.name) like ?`,
+	// 	strings.ToLower(query)+"%")
+	// defer db2.Close()
 
-	if err != nil {
-		directories = nil
-	} else {
-		for rows.Next() {
-			var d NDirectory
-			rows.Scan(&d.ID, &d.Name, &nt, &size)
-			d.Size = sizeString(size)
-			if nt.Valid {
-				d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
-			}
+	// if err != nil {
+	// 	directories = nil
+	// } else {
+	// 	for rows.Next() {
+	// 		var d NDirectory
+	// 		rows.Scan(&d.ID, &d.Name, &nt, &size)
+	// 		d.Size = sizeString(size)
+	// 		if nt.Valid {
+	// 			d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+	// 		}
 
-			directories = append(directories, d)
-		}
-	}
+	// 		directories = append(directories, d)
+	// 	}
+	// }
 
 	// result
 	c.Header("Access-Control-Allow-Origin", "*")
