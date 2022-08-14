@@ -1,5 +1,7 @@
 document.onreadystatechange = function () {
 
+	var showAdvancedSearch = 0;
+
 	function checkConnection() {
 		var request = new XMLHttpRequest();
 		request.open('GET', config.api+'/ping');
@@ -44,12 +46,24 @@ document.onreadystatechange = function () {
 		location = 'search.html?q=' + query
 	}
 
+	function advancedSearch() {
+		showAdvancedSearch = !showAdvancedSearch;
+		if (showAdvancedSearch == 0) {
+			advancedSeachPanel.style.display = "none";
+		} else {
+			advancedSeachPanel.style.display = "inline";
+		}
+			
+	}
+
 	if (document.readyState === 'complete') {
 		checkConnection();
 
 		var message = document.querySelector('#message');
 		var result = document.querySelector('#result');
 		var searchForm = document.querySelector('#search-form');
+		var advancedSeachPanel = document.querySelector('#advanced-search-panel');
+		document.getElementById("advanced-search").addEventListener("click", advancedSearch, false);
 
 		welcomeMessage()
 

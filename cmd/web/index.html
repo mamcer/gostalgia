@@ -9,7 +9,8 @@
     <meta name="description" content="nostalgia">
     <meta name="author" content="Mario Moreno (m4mc3r@gmail.com)">
 
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+        integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
     <link rel="stylesheet" href="./main.css">
 </head>
 
@@ -19,11 +20,39 @@
     <a id="directory" href="dir.html?id=1">directory</a>
 
     </br>
-    
+
     <form id="search-form">
-        <input id="search" type="text" placeholder="search term" autocomplete="off" autofocus />
+        <input id="search" type="text" placeholder="has the words" autocomplete="off" autofocus />
         <input type="submit" value="search"></input>
     </form>
+    <a id="advanced-search" href="#">advanced search</a>
+
+    <div id="advanced-search-panel" style="display:none">
+        <div>
+            <label for="type">type</label>
+            <select id="type">
+                <option value=”name”>all</option>
+                <option value=”name”>image</option>
+                <option value=”name”>audio</option>
+                <option value=”name”>video</option>
+                <option value=”name”>doc</option>
+                <option value=”name”>sheet</option>
+                <option value=”name”>zip</option>
+            </select>
+        </div>
+        <div>
+            <label for="date-from">date from</label>
+            <input id="date-from" type="date" placeholder="date from" autocomplete="off" />
+        </div>
+        <div>
+            <label for="date-to">date to</label>
+            <input id="date-to" type="date" placeholder="date to" autocomplete="off" />
+        </div>
+        <div>
+            <input type="checkbox" id="include-directories" name="include-directories" checked>
+            <label for="include-directories">include directories</label>
+        </div>
+    </div>
 
     <div id="message"></div>
     <div id="result"></div>
