@@ -1,5 +1,4 @@
 document.onreadystatechange = function () {
-
 	function getParameterByName(name, url) {
 		if (!url) url = window.location.href;
 		name = name.replace(/[\[\]]/g, '\\$&');
@@ -15,18 +14,18 @@ document.onreadystatechange = function () {
 		var id = getParameterByName('id');
 
 		var request = new XMLHttpRequest();
-		request.open('GET', config.api+'/directories/' + id);
+		request.open('GET', config.api + '/directories/' + id);
 		request.onreadystatechange = function () {
 			if (request.readyState == 4) {
 				if (request.status === 200) {
 					var data = JSON.parse(request.responseText);
 
 					dname.innerHTML = data.name;
-					if(data.parent_id == 0) {
+					if (data.parent_id == 0) {
 						parent.style.display = "none";
 					} else {
-						parent.style.display = "block";
-						parent.innerHTML = "<a href='dir.html?id=" + data.parent_id + "'>Parent directory</a>"
+						parent.style.display = "inline";
+						parent.innerHTML = "<a href='dir.html?id=" + data.parent_id + "'>parent_directory</a>"
 					}
 
 					content = '<table style="border-collapse: collapse;border-spacing: 0;">'
@@ -52,7 +51,7 @@ document.onreadystatechange = function () {
 					if (data.files != null) {
 						for (var i = 0; i < data.files.length; i++) {
 							content += '<tr>'
-							content += `<td><a href="vip.html?id=${data.files[i].id}">${data.files[i].name}</a></td>`
+							content += `<td><a href="javascript:window.open('${data.files[i].path}'+ '/' + '${data.files[i].name}', '_blank');">${data.files[i].name}</a></td>`
 							content += `<td>${data.files[i].date_modified}</td>`
 							content += `<td>${data.files[i].size}</td>`
 							content += '</tr>'
@@ -75,10 +74,10 @@ document.onreadystatechange = function () {
 						message.innerHTML = 'total directories: ' + data.directories.length + ', total files: ' + data.files.length;
 					} else if (data.files != null) {
 						message.style.display = "block";
-						message.innerHTML = 'total files: ' + data.files.length;					
+						message.innerHTML = 'total files: ' + data.files.length;
 					} else if (data.directories != null) {
 						message.style.display = "block";
-						message.innerHTML = 'total directories: ' + data.directories.length;					
+						message.innerHTML = 'total directories: ' + data.directories.length;
 					}
 				} else {
 					result.style.display = "none";
@@ -92,7 +91,7 @@ document.onreadystatechange = function () {
 		request.setRequestHeader("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
 		request.send();
 	}
-
+	
 	if (document.readyState === 'complete') {
 		var result = document.querySelector('#result');
 		var dname = document.querySelector('#name');

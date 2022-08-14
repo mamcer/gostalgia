@@ -263,7 +263,7 @@ func directoriesController(c *gin.Context) {
 		defer db1.Close()
 		if err != sql.ErrNoRows {
 			db2 := getDB()
-			rows, err := db2.Query("SELECT n.id as ID, n.name, n.date_modified as DateModified, n.size FROM nfile as n WHERE n.ndirectory_id = ?", id)
+			rows, err := db2.Query("SELECT n.id as ID, n.name, n.path, n.date_modified as DateModified, n.size FROM nfile as n WHERE n.ndirectory_id = ?", id)
 			defer db2.Close()
 
 			if err != nil {
@@ -271,7 +271,7 @@ func directoriesController(c *gin.Context) {
 			} else {
 				for rows.Next() {
 					var r Nfile
-					rows.Scan(&r.ID, &r.Name, &nt, &size)
+					rows.Scan(&r.ID, &r.Name, &r.Path, &nt, &size)
 					r.Size = sizeString(size)
 					if nt.Valid {
 						r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
