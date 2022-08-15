@@ -49,7 +49,6 @@ document.onreadystatechange = function () {
 			dateFrom = document.querySelector('#date-from').value;
 			dateTo = document.querySelector('#date-to').value;
 			includeDirectories = false;
-			alert(document.querySelector('#include-directories').value);
 			if (document.querySelector('#include-directories').value == 'on') {
 				includeDirectories = true;
 			}

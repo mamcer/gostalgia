@@ -18,15 +18,16 @@ import (
 )
 
 type Nfile struct {
-	ID           int64  `json:"id"`
-	Name         string `json:"name"`
-	Extension    string `json:"extension"`
-	Path         string `json:"path"`
-	DateModified string `json:"date_modified"`
-	Size         string `json:"size"`
-	Hash         string `json:"hash"`
-	NDirectoryID int64  `json:"ndirectory_id"`
-	NScanID      int64  `json:"nscan_id"`
+	ID             int64  `json:"id"`
+	Name           string `json:"name"`
+	Extension      string `json:"extension"`
+	Path           string `json:"path"`
+	DateModified   string `json:"date_modified"`
+	Size           string `json:"size"`
+	Hash           string `json:"hash"`
+	NDirectoryID   int64  `json:"ndirectory_id"`
+	NDirectoryName string `json:"ndirectory_name"`
+	NScanID        int64  `json:"nscan_id"`
 }
 
 type NDirectory struct {
@@ -133,16 +134,18 @@ func search(c *gin.Context) {
 
 	db := getDB()
 
-	var sq = `SELECT 	n.id as ID, 
-							n.name, 
-							n.Extension, 
-							n.path, 
-							n.size, 
-							n.ndirectory_id as NDirectoryID, 
-							n.nscan_id as NScanID, 
-							n.date_modified as DateModified 
-				FROM nfile as n 
-				WHERE lower(n.name) like ?`
+	var sq = `SELECT 	n.id as ID,
+							n.name,
+							n.Extension,
+							n.path,
+							n.size,
+							n.ndirectory_id as NDirectoryID,
+							nd.name as NDirectoryName,
+							n.nscan_id as NScanID,
+							n.date_modified as DateModified
+				FROM nfile as n, ndirectory as nd
+				WHERE n.ndirectory_id = nd.id and lower(n.name) like ?`
+
 	switch t {
 	case "image":
 		sq += " and n.extension in ('jpeg', 'png', 'jpg', 'bmp')"
@@ -169,7 +172,7 @@ func search(c *gin.Context) {
 	} else {
 		for rows.Next() {
 			var r Nfile
-			rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &size, &r.NDirectoryID, &r.NScanID, &nt)
+			rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &size, &r.NDirectoryID, &r.NDirectoryName, &r.NScanID, &nt)
 			r.Size = sizeString(size)
 			if nt.Valid {
 				r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())

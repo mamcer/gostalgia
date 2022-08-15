@@ -106,7 +106,7 @@ document.onreadystatechange = function () {
                             content += `<td><a href="javascript:window.open('${path}', '_blank');">${data.files[i].name}</a></td>`
                             content += `<td>${data.files[i].date_modified}</td>`
                             content += `<td>${data.files[i].size}</td>`
-                            content += `<td><a href='dir.html?id=${data.files[i].ndirectory_id}'>${data.files[i].ndirectory_id}</a></td>`
+                            content += `<td><a href='dir.html?id=${data.files[i].ndirectory_id}'>${data.files[i].ndirectory_name}</a></td>`
                             content += '</tr>'
                         }
                     }
