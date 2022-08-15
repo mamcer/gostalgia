@@ -20,9 +20,38 @@
     </br>
 
     <form id="search-form">
-        <input id="search" type="text" placeholder="search term" autocomplete="off" autofocus />
+        <input id="search" type="text" placeholder="has the words" autocomplete="off" autofocus />
         <input type="submit" value="search"></input>
     </form>
+
+    <a id="advanced-search" href="#">advanced search</a>
+
+    <div id="advanced-search-panel" style="display:none">
+        <div>
+            <label for="type">type</label>
+            <select id="type">
+                <option value="all">all</option>
+                <option value="image">image</option>
+                <option value="audio">audio</option>
+                <option value="video">video</option>
+                <option value="doc">doc</option>
+                <option value="sheet">sheet</option>
+                <option value="zip">zip</option>
+            </select>
+        </div>
+        <div>
+            <label for="date-from">date from</label>
+            <input id="date-from" type="date" placeholder="date from" autocomplete="off" />
+        </div>
+        <div>
+            <label for="date-to">date to</label>
+            <input id="date-to" type="date" placeholder="date to" autocomplete="off" />
+        </div>
+        <div>
+            <input type="checkbox" id="include-directories" name="include-directories" checked>
+            <label for="include-directories">include directories</label>
+        </div>
+    </div>
 
     <div id="message"></div>
     <div id="result"></div>

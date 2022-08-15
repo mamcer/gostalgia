@@ -4,7 +4,7 @@ document.onreadystatechange = function () {
 
 	function checkConnection() {
 		var request = new XMLHttpRequest();
-		request.open('GET', config.api+'/ping');
+		request.open('GET', config.api + '/ping');
 		request.onreadystatechange = function () {
 			if (request.readyState == 4) {
 				if (request.status != 200) {
@@ -20,7 +20,7 @@ document.onreadystatechange = function () {
 
 	function welcomeMessage() {
 		var request = new XMLHttpRequest();
-		request.open('GET', config.api+'/filescount');
+		request.open('GET', config.api + '/filescount');
 		request.onreadystatechange = function () {
 			if (request.readyState == 4) {
 				if (request.status === 200) {
@@ -43,7 +43,21 @@ document.onreadystatechange = function () {
 	function search() {
 		result.innerHTML = ''
 		var query = document.querySelector('#search').value;
-		location = 'search.html?q=' + query
+
+		if (showAdvancedSearch) {
+			type = document.querySelector('#type').value;
+			dateFrom = document.querySelector('#date-from').value;
+			dateTo = document.querySelector('#date-to').value;
+			includeDirectories = false;
+			alert(document.querySelector('#include-directories').value);
+			if (document.querySelector('#include-directories').value == 'on') {
+				includeDirectories = true;
+			}
+
+			location = 'search.html?q=' + query + '&type=' + type + '&from=' + dateFrom + '&to=' + dateTo + '&id=' + includeDirectories;
+		} else {
+			location = 'search.html?q=' + query;
+		}
 	}
 
 	function advancedSearch() {
@@ -53,7 +67,6 @@ document.onreadystatechange = function () {
 		} else {
 			advancedSeachPanel.style.display = "inline";
 		}
-			
 	}
 
 	if (document.readyState === 'complete') {
