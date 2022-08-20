@@ -11,7 +11,16 @@ drop table `nerror`;
 
 set foreign_key_checks=1;
 
--- select all 
+-- truncate tables
+
+truncate table `nfile`;
+truncate table `ndirectory`;
+truncate table `nscan`;
+truncate table `nfile_ndirectory`;
+truncate table `nerror`;
+
+
+-- count all 
 
 select count(*) as nfile from `nfile`;
 select count(*) as ndirectory from `ndirectory`;

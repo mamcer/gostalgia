@@ -42,7 +42,7 @@ CREATE TABLE `nscan` (
     `file_count` INT UNSIGNED NULL,
     `directory_count` INT UNSIGNED NULL,
     `file_repeated_count` INT UNSIGNED NULL,
-    `status` INT NOT NULL,                  -- done = 0, inprogress = 1, error = 2
+    `status` INT NOT NULL,                  -- done = 1, inprogress = 2, error = 3
     `root_directory_id` BIGINT UNSIGNED NULL,
     `retry_count` TINYINT UNSIGNED NOT NULL,
     PRIMARY KEY (`id`)
@@ -124,7 +124,7 @@ INSERT INTO `nostalgia`.`ndirectory`
 `nscan_id`)
 VALUES
 (
-"stash",
+"/",
 "/",
 now(),
 0,
