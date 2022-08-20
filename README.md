@@ -18,6 +18,8 @@ nerror
     docker exec -it nostalgia mysql -uroot -p
     create database nostalgia;
 
+    // run schema.sql
+
 ### MyCli
 
     mycli -h localhost -u root -D nostalgia -P 3306
@@ -39,28 +41,13 @@ mac format Mib
     -- repeated files size
     select sum(n.size)/1000/1000 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
 
-
-    SELECT id, name, hash, size
-    FROM nostalgia.nfile as n
-    WHERE hash IN (SELECT hash FROM nostalgia.nfile WHERE id != n.id)
-    
-    select c.hash, c.s, n.size
-    from
-    (
-    SELECT hash, sum(size) as s
-    FROM nostalgia.nfile as n
-    WHERE hash IN (SELECT hash FROM nostalgia.nfile WHERE id != n.id) group by hash) as c, nfile as n
-    WHERE
-    n.hash = c.hash
-    order by s desc
+    select sum(n.size)/1024/1024/1024 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
 
 ## Link
 
     ln -s /media/darkforce/stash/ stash
 
     ln -s /mnt/homunculus/pictures stash/2
-
-    select sum(n.size)/1024/1024/1024 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
 
 ## Times
 
