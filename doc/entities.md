@@ -35,26 +35,6 @@ now(),
 
 SET FOREIGN_KEY_CHECKS=1;
 
-## find duplicates
-
-    SELECT id, name, hash, size 
-    FROM nostalgia.nfile as n 
-    WHERE hash IN (SELECT hash FROM nostalgia.nfile WHERE id != n.id)
-
-With Size
-
-    select c.hash, c.s, n.size
-    from
-    (
-    SELECT hash, sum(size) as s
-    FROM nostalgia.nfile as n
-    WHERE hash IN (SELECT hash FROM nostalgia.nfile WHERE id != n.id) group by hash) as c, nfile as n
-    WHERE
-    n.hash = c.hash
-    group by hash, s, size
-    order by size desc
-
-> only pictures, 20321 distinct files repeated. total 251.54GB
 
 ## pictures
 
