@@ -166,7 +166,7 @@ func scan(root string, sname string, db *sql.DB) int {
 	}
 
 	// nfile_ndirectory insert
-	stmtFileScan, err := db.Prepare("INSERT INTO `nfile_ndirectory` (`nfile_id`, `ndirectory_id`, `nscan_id`) VALUES (?, ?, ?)")
+	stmtFileScan, err := db.Prepare("INSERT INTO `nfile_ndirectory` (`nfile_id`, `ndirectory_id`, `nscan_id`, `name`) VALUES (?, ?, ?, ?)")
 	defer stmtFileScan.Close()
 	if err != nil {
 		fmt.Printf("error preparing nscan_nfile insert: %v\n", err)
@@ -285,7 +285,7 @@ func scan(root string, sname string, db *sql.DB) int {
 				db.QueryRow("SELECT `id`, `name` FROM `nfile` WHERE `hash` = ?", h).Scan(&efi, &efn)
 				if efi != 0 {
 					// file exists
-					_, err := stmtFileScan.Exec(efi, parent.ID, ns.ID)
+					_, err := stmtFileScan.Exec(efi, parent.ID, ns.ID, efn)
 					if err != nil {
 						fmt.Printf("error inserting file_scan '%v'- %v\n", efi, err)
 						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file_scan '%v' - %v", efi, err), ns.ID)

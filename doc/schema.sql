@@ -54,6 +54,7 @@ CREATE TABLE `nfile_ndirectory` (
     `nfile_id` BIGINT UNSIGNED NOT NULL,
     `ndirectory_id` BIGINT UNSIGNED NOT NULL,
     `nscan_id` BIGINT UNSIGNED NOT NULL,
+    `name` VARCHAR(255) NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
 
