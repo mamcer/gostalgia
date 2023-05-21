@@ -390,28 +390,30 @@ func main() {
 		return
 	}
 
-	g := gin.Default()
+	router := gin.Default()
 
-	g.GET("/ping", ping)
-	g.OPTIONS("/ping", preflight)
+	v1 := router.Group("/v1")
 
-	g.GET("/search", search)
-	g.OPTIONS("/search", preflight)
+	v1.GET("/ping", ping)
+	v1.OPTIONS("/ping", preflight)
 
-	g.GET("/files/:id", fileController)
-	g.OPTIONS("/files/:id", preflight)
+	v1.GET("/search", search)
+	v1.OPTIONS("/search", preflight)
 
-	g.GET("/filescount", filesCount)
-	g.OPTIONS("/filescount", preflight)
+	v1.GET("/files/:id", fileController)
+	v1.OPTIONS("/files/:id", preflight)
 
-	g.GET("/directories/:id", directoriesController)
-	g.OPTIONS("/directories/:id", preflight)
+	v1.GET("/filescount", filesCount)
+	v1.OPTIONS("/filescount", preflight)
 
-	g.GET("/directories/:id/files", directoryFilesController)
-	g.OPTIONS("/directories/:id/files", preflight)
+	v1.GET("/directories/:id", directoriesController)
+	v1.OPTIONS("/directories/:id", preflight)
 
-	g.GET("/directories/:id/directories", directoryDirectoriesController)
-	g.OPTIONS("/directories/:id/directories", preflight)
+	v1.GET("/directories/:id/files", directoryFilesController)
+	v1.OPTIONS("/directories/:id/files", preflight)
+
+	v1.GET("/directories/:id/directories", directoryDirectoriesController)
+	v1.OPTIONS("/directories/:id/directories", preflight)
 
 	go func() {
 		http.Handle("/",
@@ -420,5 +422,5 @@ func main() {
 		log.Fatal(http.ListenAndServe(":"+config.WebPort, nil))
 	}()
 
-	g.Run(":" + config.ApiPort)
+	_ = router.Run(":" + config.ApiPort)
 }
