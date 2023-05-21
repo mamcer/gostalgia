@@ -18,16 +18,13 @@ import (
 )
 
 type Nfile struct {
-	ID             int64  `json:"id"`
-	Name           string `json:"name"`
-	Extension      string `json:"extension"`
-	Path           string `json:"path"`
-	DateModified   string `json:"date_modified"`
-	Size           string `json:"size"`
-	Hash           string `json:"hash"`
-	NDirectoryID   int64  `json:"ndirectory_id"`
-	NDirectoryName string `json:"ndirectory_name"`
-	NScanID        int64  `json:"nscan_id"`
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	Extension    string `json:"extension"`
+	Path         string `json:"path"`
+	DateModified string `json:"date_modified"`
+	Size         string `json:"size"`
+	Hash         string `json:"hash"`
 }
 
 type NDirectory struct {
@@ -135,16 +132,14 @@ func search(c *gin.Context) {
 	db := getDB()
 
 	var sq = `SELECT 	n.id as ID,
-							n.name,
-							n.Extension,
-							n.path,
-							n.size,
-							n.ndirectory_id as NDirectoryID,
-							nd.name as NDirectoryName,
-							n.nscan_id as NScanID,
-							n.date_modified as DateModified
-				FROM nfile as n, ndirectory as nd
-				WHERE n.ndirectory_id = nd.id and lower(n.name) like ?`
+						n.name,
+						n.extension,
+						n.path,
+						n.size,
+						n.date_modified as DateModified,
+						n.hash
+				FROM nfile as n
+				WHERE lower(n.name) like ?`
 
 	switch t {
 	case "image":
@@ -172,7 +167,7 @@ func search(c *gin.Context) {
 	} else {
 		for rows.Next() {
 			var r Nfile
-			rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &size, &r.NDirectoryID, &r.NDirectoryName, &r.NScanID, &nt)
+			rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &size, &nt, &r.Hash)
 			r.Size = sizeString(size)
 			if nt.Valid {
 				r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
@@ -230,7 +225,7 @@ func fileController(c *gin.Context) {
 	var r Nfile
 	if id != "" {
 		db := getDB()
-		err := db.QueryRow("SELECT n.id as ID, n.name, n.path, n.size, n.ndirectory_id as NDirectoryID, n.nscan_id as NScanID, n.date_modified as DateModified FROM nfile as n WHERE n.id = ?", id).Scan(&r.ID, &r.Name, &r.Path, &size, &r.NDirectoryID, &r.NScanID, &nt)
+		err := db.QueryRow("SELECT n.id as ID, n.name, n.extension, n.path, n.size, n.date_modified as DateModified, n.hash FROM nfile as n WHERE n.id = ?", id).Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &size, &nt, &r.Hash)
 		defer db.Close()
 
 		if err != sql.ErrNoRows {
@@ -256,78 +251,25 @@ func directoriesController(c *gin.Context) {
 
 	var nt mysql.NullTime
 	var size int64
-	var files []Nfile
-	var directories []NDirectory
-	var dn string
-	var dp int64
+
 	if id != "" {
-		db1 := getDB()
-		err := db1.QueryRow("SELECT d.name, d.parent_id FROM ndirectory as d WHERE d.id = ?", id).Scan(&dn, &dp)
-		defer db1.Close()
+		var d NDirectory
+		db := getDB()
+		err := db.QueryRow("SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.parent_id, d.nscan_id FROM ndirectory as d WHERE d.id = ?", id).Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.ParentID, &d.NScanID)
+		defer db.Close()
 		if err != sql.ErrNoRows {
-			db2 := getDB()
-			rows, err := db2.Query("SELECT n.id as ID, n.name, n.path, n.date_modified as DateModified, n.size FROM nfile as n WHERE n.ndirectory_id = ?", id)
-			defer db2.Close()
-
-			if err != nil {
-				files = nil
-			} else {
-				for rows.Next() {
-					var r Nfile
-					rows.Scan(&r.ID, &r.Name, &r.Path, &nt, &size)
-					r.Size = sizeString(size)
-					if nt.Valid {
-						r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
-					}
-
-					files = append(files, r)
-				}
+			d.Size = sizeString(size)
+			if nt.Valid {
+				d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
 			}
 
-			db3 := getDB()
-			rows, err = db3.Query("SELECT d.id as ID, d.name, d.date_modified as DateModified, d.size FROM ndirectory as d WHERE d.parent_id = ?", id)
-			defer db3.Close()
-
-			if err != nil {
-				c.Header("Access-Control-Allow-Origin", "*")
-				c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"name":        dn,
-					"parent_id":   dp,
-					"directories": nil,
-					"files":       files,
-				})
-			} else {
-				for rows.Next() {
-					var d NDirectory
-					rows.Scan(&d.ID, &d.Name, &nt, &size)
-					d.Size = sizeString(size)
-					if nt.Valid {
-						d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
-					}
-
-					directories = append(directories, d)
-				}
-
-				c.Header("Access-Control-Allow-Origin", "*")
-				c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
-				c.JSON(http.StatusOK, gin.H{
-					"name":        dn,
-					"parent_id":   dp,
-					"directories": directories,
-					"files":       files,
-				})
-			}
-
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+			c.JSON(http.StatusOK, d)
 		} else {
 			c.Header("Access-Control-Allow-Origin", "*")
 			c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
-			c.JSON(http.StatusNotFound, gin.H{
-				"name":        "unknown",
-				"parent_id":   1,
-				"directories": nil,
-				"files":       nil,
-			})
+			c.JSON(http.StatusNotFound, struct{}{})
 		}
 	}
 }

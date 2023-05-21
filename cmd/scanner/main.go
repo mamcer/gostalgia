@@ -18,7 +18,7 @@ import (
 )
 
 var virtualPath string = "stash"
-var phisicalPath string = "/home/mario/stash"
+var physicalPath string = "/home/mario/stash"
 
 func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) int64 {
 	var size int64 = 0
@@ -99,11 +99,12 @@ func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) in
 }
 
 func getFilePath(ns entities.Nscan, p string, s string) string {
+	fmt.Printf("p:%v, nsname:%v, s:%v, ns.ID:%v\n", p, ns.Name, s, ns.ID)
 	return strings.Replace(p, ns.Name, path.Join(s, fmt.Sprintf("%v", ns.ID)), 1)
 }
 
 func copyFile(ns entities.Nscan, p string, fn string, stmtError *sql.Stmt) {
-	pp := getFilePath(ns, p, phisicalPath)
+	pp := getFilePath(ns, p, physicalPath)
 	err := os.MkdirAll(pp, 0755)
 	if err != nil {
 		_, _ = stmtError.Exec(fmt.Sprintf("failed to create directory: '%v' - %v", pp, err), ns.ID)
