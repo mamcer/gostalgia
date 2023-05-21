@@ -105,11 +105,17 @@ func search(c *gin.Context) {
 	var nt mysql.NullTime
 	var size int64
 	query := c.DefaultQuery("q", "mario")
-	if query == "" {
-		query = "mario"
-	}
-
 	t := c.DefaultQuery("type", "any")
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil {
+		fmt.Printf("error converting page to int: %v", err)
+		page = 1
+	}
+	perPage, err := strconv.Atoi(c.DefaultQuery("per_page", "50"))
+	if err != nil {
+		fmt.Printf("error converting per page to int: %v", err)
+		perPage = 50
+	}
 
 	layout := "2006-01-02"
 
@@ -146,21 +152,24 @@ func search(c *gin.Context) {
 	case "image":
 		sq += " and n.extension in ('jpeg', 'png', 'jpg', 'bmp')"
 	case "doc":
-		sq += " and n.extension in ('doc', 'docx', 'odt')"
+		sq += " and n.extension in ('doc', 'docx', 'odt', 'pdf')"
 	case "sheet":
 		sq += " and n.extension in ('xls', 'xlsx', 'ods')"
 	case "audio":
-		sq += " and n.extension in ('mp3', 'ogg', 'wma', 'arm')"
+		sq += " and n.extension in ('mp3', 'ogg', 'wma', 'arm', 'wav')"
 	case "video":
 		sq += " and n.extension in ('mp4', 'mkv', 'avi', 'wmv')"
 	case "zip":
 		sq += " and n.extension in ('zip', 'rar', '7z', 'gz')"
 	}
 
-	sq += " and n.date_modified between ? and ?"
+	sq += " and n.date_modified between ? and ? limit ? offset ?"
+
+	//limit = per_page
+	//offset = (page-1)*per_page
 
 	rows, err := db.Query(sq,
-		"%"+strings.ToLower(query)+"%", after, before)
+		"%"+strings.ToLower(query)+"%", after, before, perPage, (page-1)*perPage)
 	defer db.Close()
 
 	if err != nil {
@@ -180,40 +189,48 @@ func search(c *gin.Context) {
 
 	// directories
 	var directories []NDirectory
-	// db2 := getDB()
-	// rows, err = db2.Query(`SELECT d.id as ID, d.name, d.date_modified as DateModified, d.size FROM ndirectory as d WHERE lower(d.name) like ?`,
-	// 	strings.ToLower(query)+"%")
-	// defer db2.Close()
+	db2 := getDB()
+	rows, err = db2.Query(`SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id, d.nscan_id FROM ndirectory as d WHERE lower(d.name) like ? and ? limit ? offset ?`,
+		"%"+strings.ToLower(query)+"%", perPage, (page-1)*perPage)
+	defer db2.Close()
 
-	// if err != nil {
-	// 	directories = nil
-	// } else {
-	// 	for rows.Next() {
-	// 		var d NDirectory
-	// 		rows.Scan(&d.ID, &d.Name, &nt, &size)
-	// 		d.Size = sizeString(size)
-	// 		if nt.Valid {
-	// 			d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
-	// 		}
+	if err != nil {
+		directories = nil
+	} else {
+		for rows.Next() {
+			var d NDirectory
+			rows.Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID, &d.NScanID)
+			d.Size = sizeString(size)
+			if nt.Valid {
+				d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+			}
 
-	// 		directories = append(directories, d)
-	// 	}
-	// }
+			directories = append(directories, d)
+		}
+	}
 
 	// result
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
 	if files == nil && directories == nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"query":       query,
-			"directories": nil,
-			"files":       nil,
+			"query":             query,
+			"total_directories": 0,
+			"total_files":       0,
+			"page":              0,
+			"per_page":          0,
+			"directories":       nil,
+			"files":             nil,
 		})
 	} else {
 		c.JSON(http.StatusOK, gin.H{
-			"query":       query,
-			"directories": directories,
-			"files":       files,
+			"query":             query,
+			"total_directories": len(directories),
+			"total_files":       len(files),
+			"page":              page,
+			"per_page":          perPage,
+			"directories":       directories,
+			"files":             files,
 		})
 	}
 }
@@ -397,6 +414,7 @@ func main() {
 	v1.GET("/ping", ping)
 	v1.OPTIONS("/ping", preflight)
 
+	// /search?q=a&type=[image|doc|sheet|audio|video|zip|any]&after=1000-01-01&before=9999-12-31&page=1&per_page=50
 	v1.GET("/search", search)
 	v1.OPTIONS("/search", preflight)
 
