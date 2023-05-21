@@ -274,6 +274,51 @@ func directoriesController(c *gin.Context) {
 	}
 }
 
+func directoryFilesController(c *gin.Context) {
+	id := c.Param("id")
+
+	var nt mysql.NullTime
+	var size int64
+
+	if id != "" {
+		db := getDB()
+		query := `SELECT  f.id as ID, 
+        f.name, 
+        f.extension, 
+        f.path, 
+        f.size, 
+        f.date_modified as DateModified, 
+        f.hash 
+		FROM nfile AS f, ndirectory as d, nfile_ndirectory AS fd
+		WHERE d.id = ? and fd.ndirectory_id = d.id and fd.nfile_id = f.id`
+
+		rows, err := db.Query(query, id)
+		defer db.Close()
+
+		if err != nil {
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+			c.JSON(http.StatusNotFound, struct{}{})
+		} else {
+			var files []Nfile
+			for rows.Next() {
+				var r Nfile
+				rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &size, &nt, &r.Hash)
+				r.Size = sizeString(size)
+				if nt.Valid {
+					r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+				}
+
+				files = append(files, r)
+			}
+
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+			c.JSON(http.StatusOK, files)
+		}
+	}
+}
+
 func preflight(c *gin.Context) {
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
@@ -309,6 +354,9 @@ func main() {
 
 	g.GET("/directories/:id", directoriesController)
 	g.OPTIONS("/directories/:id", preflight)
+
+	g.GET("/directories/:id/files", directoryFilesController)
+	g.OPTIONS("/directories/:id/files", preflight)
 
 	go func() {
 		http.Handle("/",

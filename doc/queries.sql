@@ -19,7 +19,6 @@ truncate table `nscan`;
 truncate table `nfile_ndirectory`;
 truncate table `nerror`;
 
-
 -- count all 
 
 select count(*) as nfile from `nfile`;

@@ -17,7 +17,6 @@ import (
 	"github.com/mamcer/nostalgia/internal/pkg/hash"
 )
 
-var virtualPath string = "stash"
 var physicalPath string = "/home/mario/stash"
 
 func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) int64 {
@@ -99,8 +98,8 @@ func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) in
 }
 
 func getFilePath(ns entities.Nscan, p string, s string) string {
-	fmt.Printf("p:%v, nsname:%v, s:%v, ns.ID:%v\n", p, ns.Name, s, ns.ID)
-	return strings.Replace(p, ns.Name, path.Join(s, fmt.Sprintf("%v", ns.ID)), 1)
+	truncated := strings.Replace(p, ns.Name, "", 1)
+	return path.Join(path.Join(s, fmt.Sprintf("%v", ns.ID)), truncated)
 }
 
 func copyFile(ns entities.Nscan, p string, fn string, stmtError *sql.Stmt) {
@@ -234,7 +233,7 @@ func scan(root string, sname string, db *sql.DB) int {
 		_, _ = stmtError.Exec(fmt.Sprintf("cannot stats root directory: '%v' - %v", root, err), ns.ID)
 	}
 
-	var ndirs []entities.Ndirectory = []entities.Ndirectory{{Name: sname, Path: getFilePath(ns, root, virtualPath), Fpath: root, DateModified: fileStat.ModTime(), Size: 0, FileCount: 0, ParentID: pid, NscanID: sid}}
+	var ndirs []entities.Ndirectory = []entities.Ndirectory{{Name: sname, Path: getFilePath(ns, root, ""), Fpath: root, DateModified: fileStat.ModTime(), Size: 0, FileCount: 0, ParentID: pid, NscanID: sid}}
 	for i := 0; i < len(ndirs); i++ {
 		p = ndirs[i].Fpath
 		dfc := 0
@@ -271,10 +270,10 @@ func scan(root string, sname string, db *sql.DB) int {
 		}
 
 		for _, fileinfo := range files {
-			fp := p + "/" + fileinfo.Name()
+			fp := path.Join(p, fileinfo.Name())
 			if fileinfo.IsDir() {
 				if fileinfo.Name() != "." {
-					d := entities.Ndirectory{Name: fileinfo.Name(), Path: getFilePath(ns, fp, virtualPath), Fpath: fp, DateModified: fileinfo.ModTime(), Size: 0, FileCount: 0, ParentID: pid, NscanID: sid}
+					d := entities.Ndirectory{Name: fileinfo.Name(), Path: getFilePath(ns, fp, ""), Fpath: fp, DateModified: fileinfo.ModTime(), Size: 0, FileCount: 0, ParentID: pid, NscanID: sid}
 					ndirs = append(ndirs, d)
 					dc++
 				}
@@ -286,17 +285,10 @@ func scan(root string, sname string, db *sql.DB) int {
 				db.QueryRow("SELECT `id`, `name` FROM `nfile` WHERE `hash` = ?", h).Scan(&efi, &efn)
 				if efi != 0 {
 					// file exists
-					_, err := stmtFileScan.Exec(efi, parent.ID, ns.ID, efn)
-					if err != nil {
-						fmt.Printf("error inserting file_scan '%v'- %v\n", efi, err)
-						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file_scan '%v' - %v", efi, err), ns.ID)
-						ec += 1
-					}
-
 					efc += 1
 					fmt.Printf("%.2f%% - [exists] %v\n", (float64(fc)+1)*100/float64(tfc), fp)
 				} else {
-					vp := getFilePath(ns, p, virtualPath)
+					vp := getFilePath(ns, p, "")
 					nfile := entities.Nfile{
 						Name:         fileinfo.Name(),
 						Extension:    strings.Trim(filepath.Ext(fileinfo.Name()), "."),
@@ -305,10 +297,18 @@ func scan(root string, sname string, db *sql.DB) int {
 						Size:         fileinfo.Size(),
 						Hash:         h,
 					}
-					_, err = stmtFile.Exec(nfile.Name, nfile.Extension, nfile.Path, nfile.DateModified, nfile.Size, nfile.Hash)
+					res, err = stmtFile.Exec(nfile.Name, nfile.Extension, nfile.Path, nfile.DateModified, nfile.Size, nfile.Hash)
 					if err != nil {
 						fmt.Printf("[fail]\n%v\n", err)
 						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file [%v] - %v", nfile.Path, err), ns.ID)
+						ec += 1
+					}
+
+					lastFileID, _ := res.LastInsertId()
+					_, err := stmtFileScan.Exec(lastFileID, parent.ID, ns.ID, nfile.Name)
+					if err != nil {
+						fmt.Printf("error inserting file_scan '%v'- %v\n", efi, err)
+						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file_scan '%v' - %v", efi, err), ns.ID)
 						ec += 1
 					}
 
