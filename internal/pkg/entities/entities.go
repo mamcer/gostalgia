@@ -22,15 +22,16 @@ type Nscan struct {
 }
 
 type Ndirectory struct {
-	ID           int64     // directory id
-	Name         string    // directory name
-	Path         string    // directory path
-	Size         int64     // directory size (in bytes)
-	FileCount    int64     // directory file count
-	ParentID     int64     // parent directory id
-	NscanID      int64     // scan id
-	Fpath        string    // current file path
-	DateModified time.Time // date modified
+	ID             int64     // directory id
+	Name           string    // directory name
+	Path           string    // directory path
+	Size           int64     // directory size (in bytes)
+	FileCount      int64     // directory file count
+	DirectoryCount int64     // directory directory count
+	ParentID       int64     // parent directory id
+	NscanID        int64     // scan id
+	Fpath          string    // current file path
+	DateModified   time.Time // date modified
 }
 
 type Nfile struct {

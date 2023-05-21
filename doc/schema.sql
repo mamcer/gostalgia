@@ -25,6 +25,7 @@ CREATE TABLE `ndirectory` (
     `date_modified` DATETIME NOT NULL,
     `size` BIGINT UNSIGNED NOT NULL,
     `file_count` INT UNSIGNED NOT NULL,
+    `directory_count` INT UNSIGNED NOT NULL,
     `parent_id` BIGINT UNSIGNED NOT NULL,
     `nscan_id` BIGINT UNSIGNED NOT NULL,
     PRIMARY KEY (`id`)
@@ -121,6 +122,7 @@ INSERT INTO `nostalgia`.`ndirectory`
 `date_modified`,
 `size`,
 `file_count`,
+`directory_count`,
 `parent_id`,
 `nscan_id`)
 VALUES
@@ -128,6 +130,7 @@ VALUES
 "/",
 "/",
 now(),
+0,
 0,
 0,
 0,

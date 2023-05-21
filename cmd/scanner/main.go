@@ -19,7 +19,7 @@ import (
 
 var physicalPath string = "/home/mario/stash"
 
-func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) int64 {
+func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectorySize *sql.Stmt) int64 {
 	var size int64 = 0
 
 	// directory ids
@@ -40,7 +40,7 @@ func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) in
 	rows.Close()
 
 	for _, did := range dids {
-		size += updateDirectorySize(db, did, stmtUpdateDirectory)
+		size += updateDirectorySize(db, did, stmtUpdateDirectorySize)
 	}
 
 	var nfsizes []int64
@@ -88,7 +88,7 @@ func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) in
 		size += s
 	}
 
-	_, err = stmtUpdateDirectory.Exec(size, fc, rd)
+	_, err = stmtUpdateDirectorySize.Exec(size, rd)
 	if err != nil {
 		fmt.Printf("error updating parent ndirectory: %v : %v\n", rd, err)
 		bufio.NewReader(os.Stdin).ReadBytes('\n')
@@ -150,7 +150,7 @@ func scan(root string, sname string, db *sql.DB) int {
 	}
 
 	// ndirectory insert
-	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `date_modified`, `size`, `file_count`, `parent_id`, `nscan_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `date_modified`, `size`, `file_count`, `directory_count`, `parent_id`, `nscan_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	defer stmtDirectory.Close()
 	if err != nil {
 		fmt.Printf("error preparing ndirectory insert: %v\n", err)
@@ -158,10 +158,18 @@ func scan(root string, sname string, db *sql.DB) int {
 	}
 
 	// ndirectory update
-	stmtUpdateDirectory, err := db.Prepare("UPDATE `ndirectory` SET `size` = ?, `file_count` = ? WHERE id = ?")
+	stmtUpdateDirectory, err := db.Prepare("UPDATE `ndirectory` SET `size` = ?, `file_count` = ?, `directory_count` = ? WHERE id = ?")
 	defer stmtUpdateDirectory.Close()
 	if err != nil {
 		fmt.Printf("error preparing ndirectory update: %v\n", err)
+		return 1
+	}
+
+	// ndirectory size update
+	stmtUpdateDirectorySize, err := db.Prepare("UPDATE `ndirectory` SET `size` = ? WHERE id = ?")
+	defer stmtUpdateDirectorySize.Close()
+	if err != nil {
+		fmt.Printf("error preparing ndirectory update size: %v\n", err)
 		return 1
 	}
 
@@ -233,14 +241,15 @@ func scan(root string, sname string, db *sql.DB) int {
 		_, _ = stmtError.Exec(fmt.Sprintf("cannot stats root directory: '%v' - %v", root, err), ns.ID)
 	}
 
-	var ndirs []entities.Ndirectory = []entities.Ndirectory{{Name: sname, Path: getFilePath(ns, root, ""), Fpath: root, DateModified: fileStat.ModTime(), Size: 0, FileCount: 0, ParentID: pid, NscanID: sid}}
+	var ndirs []entities.Ndirectory = []entities.Ndirectory{{Name: sname, Path: getFilePath(ns, root, ""), Fpath: root, DateModified: fileStat.ModTime(), Size: 0, FileCount: 0, DirectoryCount: 0, ParentID: pid, NscanID: sid}}
 	for i := 0; i < len(ndirs); i++ {
 		p = ndirs[i].Fpath
 		dfc := 0
+		ddc := 0
 		var ds int64
 
 		parent := ndirs[i]
-		res, err := stmtDirectory.Exec(parent.Name, parent.Path, parent.DateModified, parent.Size, parent.FileCount, parent.ParentID, parent.NscanID)
+		res, err := stmtDirectory.Exec(parent.Name, parent.Path, parent.DateModified, parent.Size, parent.FileCount, parent.FileCount, parent.ParentID, parent.NscanID)
 		if err != nil {
 			fmt.Printf("error inserting parent directory '%v': %v\n", parent.Path, err)
 			_, _ = stmtError.Exec(fmt.Sprintf("error inserting parent directory '%v' - %v", parent.Path, err), ns.ID)
@@ -276,6 +285,7 @@ func scan(root string, sname string, db *sql.DB) int {
 					d := entities.Ndirectory{Name: fileinfo.Name(), Path: getFilePath(ns, fp, ""), Fpath: fp, DateModified: fileinfo.ModTime(), Size: 0, FileCount: 0, ParentID: pid, NscanID: sid}
 					ndirs = append(ndirs, d)
 					dc++
+					ddc++
 				}
 			} else {
 				h, _ := hash.Calculate(fp)
@@ -324,7 +334,7 @@ func scan(root string, sname string, db *sql.DB) int {
 			}
 		}
 
-		_, err = stmtUpdateDirectory.Exec(ds, dfc, parent.ID)
+		_, err = stmtUpdateDirectory.Exec(ds, dfc, ddc, parent.ID)
 		if err != nil {
 			fmt.Printf("error updating ndirectory: %v : %v\n", parent.ID, err)
 			_, _ = stmtError.Exec(fmt.Sprintf("error updating ndirectory: %v - %v\n", parent.ID, err), ns.ID)
@@ -351,7 +361,7 @@ func scan(root string, sname string, db *sql.DB) int {
 	fmt.Printf("process finished: %v\nscan_id: %v, files: %v, directories: %v, existing files: %v (%v%%), errors: %v\n", elapsed, ns.ID, ns.FileCount, ns.DirectoryCount, efc, efp, ec)
 
 	// fmt.Printf("updating directory size...")
-	//	ss := updateDirectorySize(db, ns.RootDirectoryId, stmtUpdateDirectory)
+	//	ss := updateDirectorySize(db, ns.RootDirectoryId, stmtUpdateDirectorySize)
 	// fmt.Printf("[ok]\ntotal size: %v bytes, %v\n", ss, files.SizeString(ss))
 
 	return ec

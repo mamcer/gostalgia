@@ -28,14 +28,15 @@ type Nfile struct {
 }
 
 type NDirectory struct {
-	ID           int64  `json:"id"`
-	Name         string `json:"name"`
-	Path         string `json:"path"`
-	DateModified string `json:"date_modified"`
-	Size         string `json:"size"`
-	FileCount    int64  `json:"file_count"`
-	ParentID     int64  `json:"parent_id"`
-	NScanID      int64  `json:"nscan_id"`
+	ID             int64  `json:"id"`
+	Name           string `json:"name"`
+	Path           string `json:"path"`
+	DateModified   string `json:"date_modified"`
+	Size           string `json:"size"`
+	FileCount      int64  `json:"file_count"`
+	DirectoryCount int64  `json:"directory_count"`
+	ParentID       int64  `json:"parent_id"`
+	NScanID        int64  `json:"nscan_id"`
 }
 
 // Configuration container
@@ -255,7 +256,7 @@ func directoriesController(c *gin.Context) {
 	if id != "" {
 		var d NDirectory
 		db := getDB()
-		err := db.QueryRow("SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.parent_id, d.nscan_id FROM ndirectory as d WHERE d.id = ?", id).Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.ParentID, &d.NScanID)
+		err := db.QueryRow("SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id, d.nscan_id FROM ndirectory as d WHERE d.id = ?", id).Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID, &d.NScanID)
 		defer db.Close()
 		if err != sql.ErrNoRows {
 			d.Size = sizeString(size)
@@ -319,6 +320,57 @@ func directoryFilesController(c *gin.Context) {
 	}
 }
 
+func directoryDirectoriesController(c *gin.Context) {
+	id := c.Param("id")
+
+	var nt mysql.NullTime
+	var size int64
+
+	if id != "" {
+		db := getDB()
+		query := `SELECT  d.id as ID, 
+        d.name, 
+        d.path, 
+        d.date_modified as DateModified, 
+        d.size, 
+        d.file_count, 
+        d.directory_count, 
+        d.parent_id, 
+        d.nscan_id 
+		FROM ndirectory as d
+		WHERE d.parent_id = ?`
+
+		rows, err := db.Query(query, id)
+		if err != nil {
+			fmt.Printf("error executing query: %v", err)
+			return
+		}
+		defer db.Close()
+
+		if err != nil {
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+			c.JSON(http.StatusNotFound, struct{}{})
+		} else {
+			var directories []NDirectory
+			for rows.Next() {
+				var r NDirectory
+				rows.Scan(&r.ID, &r.Name, &r.Path, &nt, &size, &r.FileCount, &r.DirectoryCount, &r.ParentID, &r.NScanID)
+				r.Size = sizeString(size)
+				if nt.Valid {
+					r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+				}
+
+				directories = append(directories, r)
+			}
+
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+			c.JSON(http.StatusOK, directories)
+		}
+	}
+}
+
 func preflight(c *gin.Context) {
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
@@ -357,6 +409,9 @@ func main() {
 
 	g.GET("/directories/:id/files", directoryFilesController)
 	g.OPTIONS("/directories/:id/files", preflight)
+
+	g.GET("/directories/:id/directories", directoryDirectoriesController)
+	g.OPTIONS("/directories/:id/directories", preflight)
 
 	go func() {
 		http.Handle("/",
