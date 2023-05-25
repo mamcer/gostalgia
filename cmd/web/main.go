@@ -414,7 +414,6 @@ func main() {
 	v1.GET("/ping", ping)
 	v1.OPTIONS("/ping", preflight)
 
-	// /search?q=a&type=[image|doc|sheet|audio|video|zip|any]&after=1000-01-01&before=9999-12-31&page=1&per_page=50
 	v1.GET("/search", search)
 	v1.OPTIONS("/search", preflight)
 

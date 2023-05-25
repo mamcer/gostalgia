@@ -19,84 +19,6 @@ import (
 
 var physicalPath string = "/home/mario/stash"
 
-func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectorySize *sql.Stmt) int64 {
-	var size int64 = 0
-
-	// directory ids
-	var dids []int64
-	rows, err := db.Query("SELECT `id` FROM `ndirectory` WHERE `parent_id` = ?", rd)
-	if err != nil {
-		panic(err)
-	}
-	for rows.Next() {
-		var id int64
-		err = rows.Scan(&id)
-		if err != nil {
-			panic(err)
-		}
-
-		dids = append(dids, id)
-	}
-	rows.Close()
-
-	for _, did := range dids {
-		size += updateDirectorySize(db, did, stmtUpdateDirectorySize)
-	}
-
-	var nfsizes []int64
-	db.QueryRow("SELECT `size` FROM `nfile` WHERE `ndirectory_id` = ?", rd).Scan(&nfsizes)
-	for i := 0; i < len(nfsizes); i++ {
-		size += nfsizes[i]
-	}
-
-	var fc int64 = 0
-	rows2, err := db.Query("SELECT `size` FROM `nfile` WHERE `ndirectory_id` = ?", rd)
-	if err != nil {
-		panic(err)
-	}
-	defer rows2.Close()
-	for rows2.Next() {
-		var s int64
-		err = rows2.Scan(&s)
-		if err != nil {
-			panic(err)
-		}
-
-		fc += 1
-		size += s
-	}
-
-	var nfssizes []int64
-	db.QueryRow("SELECT nf.`size` FROM `nfile` as nf, `nfile_ndirectory` as nfs WHERE nf.id = nfs.nfile_id and nfs.ndirectory_id = ?", rd).Scan(&nfssizes)
-	for i := 0; i < len(nfssizes); i++ {
-		size += nfssizes[i]
-	}
-
-	rows3, err := db.Query("SELECT nf.`size` FROM `nfile` as nf, `nfile_ndirectory` as nfs WHERE nf.id = nfs.nfile_id and nfs.ndirectory_id = ?", rd)
-	if err != nil {
-		panic(err)
-	}
-	defer rows3.Close()
-	for rows3.Next() {
-		var s int64
-		err = rows3.Scan(&s)
-		if err != nil {
-			panic(err)
-		}
-
-		fc += 1
-		size += s
-	}
-
-	_, err = stmtUpdateDirectorySize.Exec(size, rd)
-	if err != nil {
-		fmt.Printf("error updating parent ndirectory: %v : %v\n", rd, err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-	}
-
-	return size
-}
-
 func getFilePath(ns entities.Nscan, p string, s string) string {
 	truncated := strings.Replace(p, ns.Name, "", 1)
 	return path.Join(path.Join(s, fmt.Sprintf("%v", ns.ID)), truncated)
@@ -359,10 +281,6 @@ func scan(root string, sname string, db *sql.DB) int {
 		efp = efc * 100 / ns.FileCount
 	}
 	fmt.Printf("process finished: %v\nscan_id: %v, files: %v, directories: %v, existing files: %v (%v%%), errors: %v\n", elapsed, ns.ID, ns.FileCount, ns.DirectoryCount, efc, efp, ec)
-
-	// fmt.Printf("updating directory size...")
-	//	ss := updateDirectorySize(db, ns.RootDirectoryId, stmtUpdateDirectorySize)
-	// fmt.Printf("[ok]\ntotal size: %v bytes, %v\n", ss, files.SizeString(ss))
 
 	return ec
 }
