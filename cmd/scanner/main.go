@@ -292,6 +292,8 @@ func main() {
 	}
 	defer db.Close()
 
+	//[binary] [command] [sub-command] [argument] [flag-#1] [flag-#2
+
 	if len(os.Args) > 1 {
 		if os.Args[1] == "scan" {
 			if len(os.Args) > 2 {

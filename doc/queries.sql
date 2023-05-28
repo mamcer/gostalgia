@@ -11,14 +11,6 @@ drop table `nerror`;
 
 set foreign_key_checks=1;
 
--- truncate tables
-
-truncate table `nfile`;
-truncate table `ndirectory`;
-truncate table `nscan`;
-truncate table `nfile_ndirectory`;
-truncate table `nerror`;
-
 -- count all 
 
 select count(*) as nfile from `nfile`;
@@ -29,8 +21,16 @@ select count(*) as nerror from `nerror`;
 
 -- select top 5 all 
 
-select * from `nfile` limit 5;
+select * from `nfile` limit 5;  
 select * from `ndirectory` limit 5;
 select * from `nscan` limit 5;
 select * from `nfile_ndirectory` limit 5;
 select * from `nerror` limit 5;
+
+-- schema 
+ 
+\dt `nfile`;
+\dt `ndirectory`;
+\dt `nscan`;
+\dt `nfile_ndirectory`;
+\dt `nerror`;
