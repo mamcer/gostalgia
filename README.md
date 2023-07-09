@@ -18,6 +18,8 @@ nerror
     docker exec -it nostalgia mysql -uroot -p
     create database nostalgia;
 
+    // run schema.sql
+
 ### MyCli
 
     mycli -h localhost -u root -D nostalgia -P 3306
@@ -39,28 +41,13 @@ mac format Mib
     -- repeated files size
     select sum(n.size)/1000/1000 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
 
-
-    SELECT id, name, hash, size
-    FROM nostalgia.nfile as n
-    WHERE hash IN (SELECT hash FROM nostalgia.nfile WHERE id != n.id)
-    
-    select c.hash, c.s, n.size
-    from
-    (
-    SELECT hash, sum(size) as s
-    FROM nostalgia.nfile as n
-    WHERE hash IN (SELECT hash FROM nostalgia.nfile WHERE id != n.id) group by hash) as c, nfile as n
-    WHERE
-    n.hash = c.hash
-    order by s desc
+    select sum(n.size)/1024/1024/1024 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
 
 ## Link
 
     ln -s /media/darkforce/stash/ stash
 
     ln -s /mnt/homunculus/pictures stash/2
-
-    select sum(n.size)/1024/1024/1024 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
 
 ## Times
 
@@ -100,7 +87,6 @@ type:
     audio   audios
     video   videos
     zip     compressed files
-    dir     directories
     [any]
 
 has the words:
@@ -108,3 +94,138 @@ has the words:
 date modified: 
 between 
 [any]
+
+## Api
+
+### ping 
+
+returns 'pong', health status
+
+GET 
+
+request example
+
+    ping
+
+response example
+
+    {
+      "message": "pong"
+    }
+
+### search
+
+Search for a resource, query, type, date after & before and paging
+
+GET 
+
+request example
+
+    search?q=a&type=[image|doc|sheet|audio|video|zip|any]&after=1000-01-01&before=9999-12-31&page=1&per_page=50
+
+response example
+
+    search?q=a&type=doc&after=2010-01-01&before=2020-12-31&page=1&per_page=5
+    {
+      "directories": null,
+      "files": [
+        {
+          "id": 2,
+          "name": "Design Patterns Elements of Reusable Object-Oriented Software.pdf",
+          "extension": "pdf",
+          "path": "1/doc",
+          "date_modified": "02-08-2012",
+          "size": "4.3 MB",
+          "hash": "8865aeb8efaa49a1700230e2cb1dee4c157800c8"
+        },
+        {
+          "id": 1,
+          "name": "Building_Maintainable_Software_SIG.pdf",
+          "extension": "pdf",
+          "path": "1/doc",
+          "date_modified": "11-10-2016",
+          "size": "6.5 MB",
+          "hash": "3cf2bebbdadfe1a9fb6112c102553db0f1d7ed9b"
+        }
+      ],
+      "page": 1,
+      "per_page": 5,
+      "query": "a",
+      "total_directories": 0,
+      "total_files": 2
+    }
+
+error codes
+
+    404 if the query return no results
+
+### files 
+
+files representation
+
+GET
+
+request example 
+
+    files/[id]
+
+response example
+
+    {
+      "id": 3,
+      "name": "coreutils.pdf",
+      "extension": "pdf",
+      "path": "1/doc",
+      "date_modified": "04-01-2023",
+      "size": "1.2 MB",
+      "hash": "40877fd288bc8c6118518d6c5fe565d67658d24e"
+    }
+
+error codes
+
+    404 if there is no file with id [id]
+
+### filescount
+
+return the total database file count
+
+GET 
+
+request example
+
+    filescount
+
+response example
+
+    {
+      "count": 5
+    }
+
+## directories
+
+directories representation
+
+GET
+
+request example
+
+    directories/[id]
+
+response example
+
+    {
+      "id": 3,
+      "name": "doc",
+      "path": "1/doc",
+      "date_modified": "21-05-2023",
+      "size": "12.0 MB",
+      "file_count": 3,
+      "directory_count": 0,
+      "parent_id": 2,
+      "nscan_id": 1
+    }
+
+error codes
+
+    404 if there is no directory with id [id]
+ 

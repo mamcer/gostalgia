@@ -2,207 +2,33 @@ package main
 
 import (
 	"bufio"
-	"crypto/sha1"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/mamcer/nostalgia/internal/pkg/entities"
+	"github.com/mamcer/nostalgia/internal/pkg/hash"
 )
 
-const (
-	Done int64 = iota
-	InProgress
-	Error
-)
+var physicalPath string = "/home/mario/stash"
 
-type nscan struct {
-	ID                int64     // scan id
-	dateCreated       time.Time // scan creation date
-	duration          int64     // scan duration (in milliseconds)
-	fileCount         int64     // file scan count
-	directoryCount    int64     // directory scan count
-	status            int64     // scan status = done, inprogress, error
-	rootDirectoryPath string    // scan root directory path
-	rootDirectoryId   int64     // scan directory id
-	retryCount        int64     // scan retry count
+func getFilePath(ns entities.Nscan, p string, s string) string {
+	truncated := strings.Replace(p, ns.Name, "", 1)
+	return path.Join(path.Join(s, fmt.Sprintf("%v", ns.ID)), truncated)
 }
 
-type ndirectory struct {
-	ID           int64     // directory id
-	name         string    // directory name
-	path         string    // directory path
-	size         int64     // directory size (in bytes)
-	fileCount    int64     // directory file count
-	parentID     int64     // parent directory id
-	nscanID      int64     // scan id
-	fpath        string    // current file path
-	dateModified time.Time // date modified
-}
-
-type nfile struct {
-	ID           int64     // file id
-	name         string    //file name
-	extension    string    //file extension
-	path         string    // file path
-	dateModified time.Time // file date modified
-	size         int64     // file size (in bytes)
-	hash         string    // file hash
-	ndirectoryID int64     // file directory id
-	nscanID      int64     // scan id
-}
-
-type nfilescan struct {
-	ID           int64 // file scan id
-	nfileID      int64 // file id
-	ndirectoryID int64 // directory id
-	nscanID      int64 // scan id
-}
-
-type nerror struct {
-	ID          int64  // error id
-	description string // error description
-	nscanID     int64  // scan id
-	retryCount  int64  // retry count
-}
-
-var vstash string = "stash"
-var pstash string = "/media/darkforce/stash"
-
-func calculateHash(filePath string) (string, error) {
-	var sha string
-
-	file, err := os.Open(filePath)
-	if err != nil {
-		return sha, err
-	}
-	defer file.Close()
-
-	hash := sha1.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return sha, err
-	}
-
-	bytes := hash.Sum(nil)[:20]
-	sha = hex.EncodeToString(bytes)
-	return sha, nil
-}
-
-func sizeString(v int64) string {
-	r := float64(v)
-	u := 1000.0
-	if v > int64(u) {
-		r = r / u
-		if r > u {
-			r = r / u
-			if r > u {
-				r = r / u
-				return fmt.Sprintf("%v GB", strconv.FormatFloat(r, 'f', 1, 64))
-			} else {
-				return fmt.Sprintf("%v MB", strconv.FormatFloat(r, 'f', 1, 64))
-			}
-		}
-		return fmt.Sprintf("%v kB", strconv.FormatFloat(r, 'f', 1, 64))
-	}
-
-	return fmt.Sprintf("%v Bytes", strconv.FormatFloat(r, 'f', 1, 64))
-}
-
-func updateDirectorySize(db *sql.DB, rd int64, stmtUpdateDirectory *sql.Stmt) int64 {
-	var size int64 = 0
-
-	// directory ids
-	var dids []int64
-	rows, err := db.Query("SELECT `id` FROM `ndirectory` WHERE `parent_id` = ?", rd)
-	if err != nil {
-		panic(err)
-	}
-	for rows.Next() {
-		var id int64
-		err = rows.Scan(&id)
-		if err != nil {
-			panic(err)
-		}
-
-		dids = append(dids, id)
-	}
-	rows.Close()
-
-	for _, did := range dids {
-		size += updateDirectorySize(db, did, stmtUpdateDirectory)
-	}
-
-	var nfsizes []int64
-	db.QueryRow("SELECT `size` FROM `nfile` WHERE `ndirectory_id` = ?", rd).Scan(&nfsizes)
-	for i := 0; i < len(nfsizes); i++ {
-		size += nfsizes[i]
-	}
-
-	var fc int64 = 0
-	rows2, err := db.Query("SELECT `size` FROM `nfile` WHERE `ndirectory_id` = ?", rd)
-	if err != nil {
-		panic(err)
-	}
-	defer rows2.Close()
-	for rows2.Next() {
-		var s int64
-		err = rows2.Scan(&s)
-		if err != nil {
-			panic(err)
-		}
-
-		fc += 1
-		size += s
-	}
-
-	var nfssizes []int64
-	db.QueryRow("SELECT nf.`size` FROM `nfile` as nf, `nfile_nscan` as nfs WHERE nf.id = nfs.nfile_id and nfs.ndirectory_id = ?", rd).Scan(&nfssizes)
-	for i := 0; i < len(nfssizes); i++ {
-		size += nfssizes[i]
-	}
-
-	rows3, err := db.Query("SELECT nf.`size` FROM `nfile` as nf, `nfile_nscan` as nfs WHERE nf.id = nfs.nfile_id and nfs.ndirectory_id = ?", rd)
-	if err != nil {
-		panic(err)
-	}
-	defer rows3.Close()
-	for rows3.Next() {
-		var s int64
-		err = rows3.Scan(&s)
-		if err != nil {
-			panic(err)
-		}
-
-		fc += 1
-		size += s
-	}
-
-	_, err = stmtUpdateDirectory.Exec(size, fc, rd)
-	if err != nil {
-		fmt.Printf("error updating parent ndirectory: %v : %v\n", rd, err)
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
-	}
-
-	return size
-}
-
-func getFilePath(ns nscan, p string, s string) string {
-	return strings.Replace(p, ns.rootDirectoryPath, path.Join(s, fmt.Sprintf("%v", ns.ID)), 1)
-}
-
-func copyFile(ns nscan, p string, fn string, stmtError *sql.Stmt) {
-	pp := getFilePath(ns, p, pstash)
+func copyFile(ns entities.Nscan, p string, fn string, stmtError *sql.Stmt) {
+	pp := getFilePath(ns, p, physicalPath)
 	err := os.MkdirAll(pp, 0755)
 	if err != nil {
-		_, _ = stmtError.Exec(fmt.Sprintf("failed to create directory: '%v' - %v", pp, err), ns.ID, ns.retryCount)
+		_, _ = stmtError.Exec(fmt.Sprintf("failed to create directory: '%v' - %v", pp, err), ns.ID)
 	}
 	ip := path.Join(p, fn)
 	i, err := os.Open(ip)
@@ -214,14 +40,14 @@ func copyFile(ns nscan, p string, fn string, stmtError *sql.Stmt) {
 		if err == nil {
 			_, err = io.Copy(o, i)
 			if err != nil {
-				_, _ = stmtError.Exec(fmt.Sprintf("failed to copy file: '%v' to '%v' - %v", ip, op, err), ns.ID, ns.retryCount)
+				_, _ = stmtError.Exec(fmt.Sprintf("failed to copy file: '%v' to '%v' - %v", ip, op, err), ns.ID)
 			}
 		} else {
-			_, _ = stmtError.Exec(fmt.Sprintf("failed to create file to copy: %v - %v", op, err), ns.ID, ns.retryCount)
+			_, _ = stmtError.Exec(fmt.Sprintf("failed to create file to copy: %v - %v", op, err), ns.ID)
 		}
 
 	} else {
-		_, _ = stmtError.Exec(fmt.Sprintf("failed to open file to copy: %v - %v", ip, err), ns.ID, ns.retryCount)
+		_, _ = stmtError.Exec(fmt.Sprintf("failed to open file to copy: %v - %v", ip, err), ns.ID)
 	}
 }
 
@@ -230,7 +56,7 @@ func scan(root string, sname string, db *sql.DB) int {
 	fmt.Printf("scan process started\n")
 
 	// nscan insert
-	stmtScan, err := db.Prepare("INSERT INTO `nscan` (`date_created`, `status`, `root_directory_path`, `retry_count`) VALUES (?, ?, ?, ?)")
+	stmtScan, err := db.Prepare("INSERT INTO `nscan` (`date_created`, `status`, `name`, `retry_count`) VALUES (?, ?, ?, ?)")
 	defer stmtScan.Close()
 	if err != nil {
 		fmt.Printf("error preparing nscan insert: %v\n", err)
@@ -246,7 +72,7 @@ func scan(root string, sname string, db *sql.DB) int {
 	}
 
 	// ndirectory insert
-	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `date_modified`, `size`, `file_count`, `parent_id`, `nscan_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `date_modified`, `size`, `file_count`, `directory_count`, `parent_id`, `nscan_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	defer stmtDirectory.Close()
 	if err != nil {
 		fmt.Printf("error preparing ndirectory insert: %v\n", err)
@@ -254,15 +80,23 @@ func scan(root string, sname string, db *sql.DB) int {
 	}
 
 	// ndirectory update
-	stmtUpdateDirectory, err := db.Prepare("UPDATE `ndirectory` SET `size` = ?, `file_count` = ? WHERE id = ?")
+	stmtUpdateDirectory, err := db.Prepare("UPDATE `ndirectory` SET `size` = ?, `file_count` = ?, `directory_count` = ? WHERE id = ?")
 	defer stmtUpdateDirectory.Close()
 	if err != nil {
 		fmt.Printf("error preparing ndirectory update: %v\n", err)
 		return 1
 	}
 
-	// nfile_nscan insert
-	stmtFileScan, err := db.Prepare("INSERT INTO `nfile_nscan` (`nfile_id`, `ndirectory_id`, `nscan_id`) VALUES (?, ?, ?)")
+	// ndirectory size update
+	stmtUpdateDirectorySize, err := db.Prepare("UPDATE `ndirectory` SET `size` = ? WHERE id = ?")
+	defer stmtUpdateDirectorySize.Close()
+	if err != nil {
+		fmt.Printf("error preparing ndirectory update size: %v\n", err)
+		return 1
+	}
+
+	// nfile_ndirectory insert
+	stmtFileScan, err := db.Prepare("INSERT INTO `nfile_ndirectory` (`nfile_id`, `ndirectory_id`, `nscan_id`, `name`) VALUES (?, ?, ?, ?)")
 	defer stmtFileScan.Close()
 	if err != nil {
 		fmt.Printf("error preparing nscan_nfile insert: %v\n", err)
@@ -270,7 +104,7 @@ func scan(root string, sname string, db *sql.DB) int {
 	}
 
 	// nfile insert
-	stmtFile, err := db.Prepare("INSERT INTO `nfile` (`name`, `extension`, `path`, `date_modified`, `size`, `hash`, `ndirectory_id`, `nscan_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+	stmtFile, err := db.Prepare("INSERT INTO `nfile` (`name`, `extension`, `path`, `date_modified`, `size`, `hash`) VALUES (?, ?, ?, ?, ?, ?)")
 	defer stmtFile.Close()
 	if err != nil {
 		fmt.Printf("error preparing nfile insert: %v\n", err)
@@ -278,24 +112,16 @@ func scan(root string, sname string, db *sql.DB) int {
 	}
 
 	// nerror insert
-	stmtError, err := db.Prepare("INSERT INTO `nerror` (`description`, `nscan_id`, `retry_count`) VALUES (?, ?, ?)")
+	stmtError, err := db.Prepare("INSERT INTO `nerror` (`description`, `nscan_id`) VALUES (?, ?)")
 	defer stmtError.Close()
 	if err != nil {
 		fmt.Printf("error preparing nerror insert: %v\n", err)
 		return 1
 	}
 
-	// ntag insert
-	stmtTag, err := db.Prepare("INSERT INTO `ntag` (`name`, `nfile_id`, `ndirectory_id`) VALUES (?, ?, ?)")
-	defer stmtTag.Close()
-	if err != nil {
-		fmt.Printf("error preparing ntag insert: %v\n", err)
-		return 1
-	}
-
 	// insert scan
-	ns := nscan{dateCreated: time.Now(), status: InProgress, rootDirectoryPath: root, retryCount: 0}
-	res, err := stmtScan.Exec(ns.dateCreated, ns.status, ns.rootDirectoryPath, ns.retryCount)
+	ns := entities.Nscan{DateCreated: time.Now(), Status: entities.InProgress, Name: root, RetryCount: 0}
+	res, err := stmtScan.Exec(ns.DateCreated, ns.Status, ns.Name, ns.RetryCount)
 	if err != nil {
 		fmt.Printf("error inserting nscan: %v\n", err)
 		return 1
@@ -334,20 +160,21 @@ func scan(root string, sname string, db *sql.DB) int {
 
 	fileStat, err := os.Stat(root)
 	if err != nil {
-		_, _ = stmtError.Exec(fmt.Sprintf("cannot stats root directory: '%v' - %v", root, err), ns.ID, ns.retryCount)
+		_, _ = stmtError.Exec(fmt.Sprintf("cannot stats root directory: '%v' - %v", root, err), ns.ID)
 	}
 
-	var ndirs []ndirectory = []ndirectory{{name: sname, path: getFilePath(ns, root, vstash), fpath: root, dateModified: fileStat.ModTime(), size: 0, fileCount: 0, parentID: pid, nscanID: sid}}
+	var ndirs []entities.Ndirectory = []entities.Ndirectory{{Name: sname, Path: getFilePath(ns, root, ""), Fpath: root, DateModified: fileStat.ModTime(), Size: 0, FileCount: 0, DirectoryCount: 0, ParentID: pid, NscanID: sid}}
 	for i := 0; i < len(ndirs); i++ {
-		p = ndirs[i].fpath
+		p = ndirs[i].Fpath
 		dfc := 0
+		ddc := 0
 		var ds int64
 
 		parent := ndirs[i]
-		res, err := stmtDirectory.Exec(parent.name, parent.path, parent.dateModified, parent.size, parent.fileCount, parent.parentID, parent.nscanID)
+		res, err := stmtDirectory.Exec(parent.Name, parent.Path, parent.DateModified, parent.Size, parent.FileCount, parent.FileCount, parent.ParentID, parent.NscanID)
 		if err != nil {
-			fmt.Printf("error inserting parent directory '%v': %v\n", parent.path, err)
-			_, _ = stmtError.Exec(fmt.Sprintf("error inserting parent directory '%v' - %v", parent.path, err), ns.ID, ns.retryCount)
+			fmt.Printf("error inserting parent directory '%v': %v\n", parent.Path, err)
+			_, _ = stmtError.Exec(fmt.Sprintf("error inserting parent directory '%v' - %v", parent.Path, err), ns.ID)
 			ec += 1
 		}
 
@@ -357,11 +184,11 @@ func scan(root string, sname string, db *sql.DB) int {
 
 		if ppid == 1 {
 			rid = parent.ID
-			ns.rootDirectoryId = rid
-			_, err = stmtUpdateScan.Exec(0, 0, 0, ns.status, ns.rootDirectoryId, ns.retryCount, ns.ID)
+			ns.RootDirectoryId = rid
+			_, err = stmtUpdateScan.Exec(0, 0, 0, ns.Status, ns.RootDirectoryId, ns.RetryCount, ns.ID)
 			if err != nil {
 				fmt.Printf("error updating nscan: %v : %v\n", sid, err)
-				_, _ = stmtError.Exec(fmt.Sprintf("error updating nscan: %v - %v", sid, err), ns.ID, ns.retryCount)
+				_, _ = stmtError.Exec(fmt.Sprintf("error updating nscan: %v - %v", sid, err), ns.ID)
 				ec += 1
 			}
 		}
@@ -369,72 +196,56 @@ func scan(root string, sname string, db *sql.DB) int {
 		files, err := ioutil.ReadDir(p)
 		if err != nil {
 			fmt.Printf("error reading directory path: [%v] - %v", p, err)
-			_, _ = stmtError.Exec(fmt.Sprintf("error reading directory path: [%v] - %v", p, err), ns.ID, ns.retryCount)
+			_, _ = stmtError.Exec(fmt.Sprintf("error reading directory path: [%v] - %v", p, err), ns.ID)
 			ec += 1
 		}
 
 		for _, fileinfo := range files {
-			fp := p + "/" + fileinfo.Name()
+			fp := path.Join(p, fileinfo.Name())
 			if fileinfo.IsDir() {
 				if fileinfo.Name() != "." {
-					d := ndirectory{name: fileinfo.Name(), path: getFilePath(ns, fp, vstash), fpath: fp, dateModified: fileinfo.ModTime(), size: 0, fileCount: 0, parentID: pid, nscanID: sid}
+					d := entities.Ndirectory{Name: fileinfo.Name(), Path: getFilePath(ns, fp, ""), Fpath: fp, DateModified: fileinfo.ModTime(), Size: 0, FileCount: 0, ParentID: pid, NscanID: sid}
 					ndirs = append(ndirs, d)
 					dc++
+					ddc++
 				}
 			} else {
-				h, _ := calculateHash(fp)
+				h, _ := hash.Calculate(fp)
 
 				efi := 0
 				efn := ""
 				db.QueryRow("SELECT `id`, `name` FROM `nfile` WHERE `hash` = ?", h).Scan(&efi, &efn)
 				if efi != 0 {
 					// file exists
-					_, err := stmtFileScan.Exec(efi, parent.ID, ns.ID)
-					if err != nil {
-						fmt.Printf("error inserting file_scan '%v'- %v\n", efi, err)
-						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file_scan '%v' - %v", efi, err), ns.ID, ns.retryCount)
-						ec += 1
-					}
-
-					tn := fileinfo.Name()
-					if efn != tn {
-						// add new file name as tag
-						et := 0
-						db.QueryRow("SELECT count(`id`) FROM `ntag` WHERE `name` = ? and nfile_id = ?", tn, efi).Scan(&et)
-
-						if et == 0 {
-							_, err = stmtTag.Exec(tn, efi, parent.ID)
-							if err != nil {
-								fmt.Printf("error inserting tag: %v '%v' -  %v\n", efi, tn, err)
-								_, _ = stmtError.Exec(fmt.Sprintf("error inserting tag: %v '%v' -  %v\n", efi, tn, err), ns.ID, ns.retryCount)
-								ec += 1
-							}
-						}
-					}
-
 					efc += 1
 					fmt.Printf("%.2f%% - [exists] %v\n", (float64(fc)+1)*100/float64(tfc), fp)
 				} else {
-					vp := getFilePath(ns, p, vstash)
-					nfile := nfile{
-						name:         fileinfo.Name(),
-						extension:    strings.Trim(filepath.Ext(fileinfo.Name()), "."),
-						path:         vp,
-						dateModified: fileinfo.ModTime(),
-						size:         fileinfo.Size(),
-						hash:         h,
-						ndirectoryID: parent.ID,
-						nscanID:      ns.ID,
+					vp := getFilePath(ns, p, "")
+					nfile := entities.Nfile{
+						Name:         fileinfo.Name(),
+						Extension:    strings.Trim(filepath.Ext(fileinfo.Name()), "."),
+						Path:         vp,
+						DateModified: fileinfo.ModTime(),
+						Size:         fileinfo.Size(),
+						Hash:         h,
 					}
-					_, err = stmtFile.Exec(nfile.name, nfile.extension, nfile.path, nfile.dateModified, nfile.size, nfile.hash, nfile.ndirectoryID, nfile.nscanID)
+					res, err = stmtFile.Exec(nfile.Name, nfile.Extension, nfile.Path, nfile.DateModified, nfile.Size, nfile.Hash)
 					if err != nil {
 						fmt.Printf("[fail]\n%v\n", err)
-						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file [%v] - %v", nfile.path, err), ns.ID, ns.retryCount)
+						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file [%v] - %v", nfile.Path, err), ns.ID)
+						ec += 1
+					}
+
+					lastFileID, _ := res.LastInsertId()
+					_, err := stmtFileScan.Exec(lastFileID, parent.ID, ns.ID, nfile.Name)
+					if err != nil {
+						fmt.Printf("error inserting file_scan '%v'- %v\n", efi, err)
+						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file_scan '%v' - %v", efi, err), ns.ID)
 						ec += 1
 					}
 
 					// copy file
-					copyFile(ns, p, nfile.name, stmtError)
+					//copyFile(ns, p, nfile.Name, stmtError)
 
 					fmt.Printf("%.2f%% - [new] %v\n", (float64(fc)+1)*100/float64(tfc), fp)
 				}
@@ -445,35 +256,31 @@ func scan(root string, sname string, db *sql.DB) int {
 			}
 		}
 
-		_, err = stmtUpdateDirectory.Exec(ds, dfc, parent.ID)
+		_, err = stmtUpdateDirectory.Exec(ds, dfc, ddc, parent.ID)
 		if err != nil {
 			fmt.Printf("error updating ndirectory: %v : %v\n", parent.ID, err)
-			_, _ = stmtError.Exec(fmt.Sprintf("error updating ndirectory: %v - %v\n", parent.ID, err), ns.ID, ns.retryCount)
+			_, _ = stmtError.Exec(fmt.Sprintf("error updating ndirectory: %v - %v\n", parent.ID, err), ns.ID)
 			ec += 1
 		}
 	}
 
 	elapsed := time.Since(start)
 
-	ns.fileCount = fc
-	ns.directoryCount = dc
-	ns.status = Done
-	_, err = stmtUpdateScan.Exec(elapsed.Milliseconds(), ns.fileCount, ns.directoryCount, ns.status, ns.rootDirectoryId, 0, ns.ID)
+	ns.FileCount = fc
+	ns.DirectoryCount = dc
+	ns.Status = entities.Done
+	_, err = stmtUpdateScan.Exec(elapsed.Milliseconds(), ns.FileCount, ns.DirectoryCount, ns.Status, ns.RootDirectoryId, 0, ns.ID)
 	if err != nil {
 		fmt.Printf("error updating nscan: %v : %v\n", ns.ID, err)
-		_, _ = stmtError.Exec(fmt.Sprintf("error updating nscan: %v : %v\n", ns.ID, err), ns.ID, ns.retryCount)
+		_, _ = stmtError.Exec(fmt.Sprintf("error updating nscan: %v : %v\n", ns.ID, err), ns.ID)
 		ec += 1
 	}
 
 	var efp int64 = 0
-	if ns.fileCount > 0 {
-		efp = efc * 100 / ns.fileCount
+	if ns.FileCount > 0 {
+		efp = efc * 100 / ns.FileCount
 	}
-	fmt.Printf("process finished: %v\nscan_id: %v, files: %v, directories: %v, existing files: %v (%v%%), errors: %v\n", elapsed, ns.ID, ns.fileCount, ns.directoryCount, efc, efp, ec)
-
-	fmt.Printf("updating directory size...")
-	ss := updateDirectorySize(db, ns.rootDirectoryId, stmtUpdateDirectory)
-	fmt.Printf("[ok]\ntotal size: %v bytes, %v\n", ss, sizeString(ss))
+	fmt.Printf("process finished: %v\nscan_id: %v, files: %v, directories: %v, existing files: %v (%v%%), errors: %v\n", elapsed, ns.ID, ns.FileCount, ns.DirectoryCount, efc, efp, ec)
 
 	return ec
 }
@@ -485,12 +292,14 @@ func main() {
 	}
 	defer db.Close()
 
+	//[binary] [command] [sub-command] [argument] [flag-#1] [flag-#2
+
 	if len(os.Args) > 1 {
 		if os.Args[1] == "scan" {
 			if len(os.Args) > 2 {
 				p := os.Args[2]
 				sid := 0
-				db.QueryRow("SELECT `id` FROM `nscan` WHERE `root_directory_path` = ?", p).Scan(&sid)
+				db.QueryRow("SELECT `id` FROM `nscan` WHERE `name` = ?", p).Scan(&sid)
 				if sid != 0 {
 					fmt.Printf("There is an existing scan (%v) with root directory path: %v\n", sid, p)
 					reader := bufio.NewReader(os.Stdin)
