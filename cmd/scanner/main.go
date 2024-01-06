@@ -72,7 +72,7 @@ func scan(root string, sname string, db *sql.DB) int {
 	}
 
 	// ndirectory insert
-	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `date_modified`, `size`, `file_count`, `directory_count`, `parent_id`, `nscan_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `date_modified`, `size`, `file_count`, `directory_count`, `parent_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	defer stmtDirectory.Close()
 	if err != nil {
 		fmt.Printf("error preparing ndirectory insert: %v\n", err)
@@ -171,7 +171,7 @@ func scan(root string, sname string, db *sql.DB) int {
 		var ds int64
 
 		parent := ndirs[i]
-		res, err := stmtDirectory.Exec(parent.Name, parent.Path, parent.DateModified, parent.Size, parent.FileCount, parent.FileCount, parent.ParentID, parent.NscanID)
+		res, err := stmtDirectory.Exec(parent.Name, parent.Path, parent.DateModified, parent.Size, parent.FileCount, parent.FileCount, parent.ParentID)
 		if err != nil {
 			fmt.Printf("error inserting parent directory '%v': %v\n", parent.Path, err)
 			_, _ = stmtError.Exec(fmt.Sprintf("error inserting parent directory '%v' - %v", parent.Path, err), ns.ID)

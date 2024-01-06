@@ -27,7 +27,6 @@ CREATE TABLE `ndirectory` (
     `file_count` INT UNSIGNED NOT NULL,
     `directory_count` INT UNSIGNED NOT NULL,
     `parent_id` BIGINT UNSIGNED NOT NULL,
-    `nscan_id` BIGINT UNSIGNED NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
 
@@ -72,11 +71,6 @@ ALTER TABLE `ndirectory`
 ADD CONSTRAINT `fk_ndirectory_ndirectory` 
 FOREIGN KEY (`parent_id`) 
 REFERENCES `ndirectory`(`id`);
-
-ALTER TABLE `ndirectory` 
-ADD CONSTRAINT `fk_ndirectory_nscan` 
-FOREIGN KEY (`nscan_id`) 
-REFERENCES `nscan`(`id`);
 
 -- fk nscan
 ALTER TABLE `nscan` 
@@ -123,14 +117,12 @@ INSERT INTO `nostalgia`.`ndirectory`
 `size`,
 `file_count`,
 `directory_count`,
-`parent_id`,
-`nscan_id`)
+`parent_id`)
 VALUES
 (
 "/",
 "/",
 now(),
-0,
 0,
 0,
 0,
