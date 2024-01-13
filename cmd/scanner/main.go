@@ -201,6 +201,11 @@ func scan(root string, sname string, db *sql.DB) int {
 		}
 
 		for _, fileinfo := range files {
+			// exclude hidden files
+			if fileinfo.Name()[0] == '.' {
+				continue
+			}
+
 			fp := path.Join(p, fileinfo.Name())
 			if fileinfo.IsDir() {
 				if fileinfo.Name() != "." {
@@ -219,6 +224,14 @@ func scan(root string, sname string, db *sql.DB) int {
 					// file exists
 					efc += 1
 					fmt.Printf("%.2f%% - [exists] %v\n", (float64(fc)+1)*100/float64(tfc), fp)
+
+					_, err := stmtFileScan.Exec(efi, parent.ID, ns.ID, fileinfo.Name())
+					if err != nil {
+						fmt.Printf("error inserting file_scan '%v'- %v\n", efi, err)
+						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file_scan '%v' - %v", efi, err), ns.ID)
+						ec += 1
+					}
+
 				} else {
 					vp := getFilePath(ns, p, "")
 					nfile := entities.Nfile{

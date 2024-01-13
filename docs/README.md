@@ -1,6 +1,6 @@
 # Nostalgia
 
-## Entities
+## entities
 
 nfile  
 ndirectory  
@@ -8,7 +8,7 @@ nscan
 nfile_ndirectory  
 nerror  
 
-## Database
+## database
 
 ### MySQL
 
@@ -31,25 +31,13 @@ nerror
     SHOW STATUS WHERE `variable_name` = 'Max_used_connections';
     show status where variable_name = 'threads_connected';
 
-### Stash size
-
-mac format Mib
-
-    -- unique files size (size in disk)
-    select sum(size)/1024/1024/1024/1024 from nfile
-
-    -- repeated files size
-    select sum(n.size)/1000/1000 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
-
-    select sum(n.size)/1024/1024/1024 from nfile_nscan as nfs, nfile as n where nfs.nfile_id = n.id
-
-## Link
+## link
 
     ln -s /media/darkforce/stash/ stash
 
     ln -s /mnt/homunculus/pictures stash/2
 
-## Times
+## times
 
 2022-01-22
 
