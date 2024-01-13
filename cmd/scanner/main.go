@@ -163,7 +163,7 @@ func scan(root string, sname string, db *sql.DB) int {
 		_, _ = stmtError.Exec(fmt.Sprintf("cannot stats root directory: '%v' - %v", root, err), ns.ID)
 	}
 
-	var ndirs []entities.Ndirectory = []entities.Ndirectory{{Name: sname, Path: getFilePath(ns, root, ""), Fpath: root, DateModified: fileStat.ModTime(), Size: 0, FileCount: 0, DirectoryCount: 0, ParentID: pid, NscanID: sid}}
+	var ndirs []entities.Ndirectory = []entities.Ndirectory{{Name: sname, Path: getFilePath(ns, root, ""), Fpath: root, DateModified: fileStat.ModTime(), Size: 0, FileCount: 0, DirectoryCount: 0, ParentID: pid}}
 	for i := 0; i < len(ndirs); i++ {
 		p = ndirs[i].Fpath
 		dfc := 0
@@ -204,7 +204,7 @@ func scan(root string, sname string, db *sql.DB) int {
 			fp := path.Join(p, fileinfo.Name())
 			if fileinfo.IsDir() {
 				if fileinfo.Name() != "." {
-					d := entities.Ndirectory{Name: fileinfo.Name(), Path: getFilePath(ns, fp, ""), Fpath: fp, DateModified: fileinfo.ModTime(), Size: 0, FileCount: 0, ParentID: pid, NscanID: sid}
+					d := entities.Ndirectory{Name: fileinfo.Name(), Path: getFilePath(ns, fp, ""), Fpath: fp, DateModified: fileinfo.ModTime(), Size: 0, FileCount: 0, ParentID: pid}
 					ndirs = append(ndirs, d)
 					dc++
 					ddc++
