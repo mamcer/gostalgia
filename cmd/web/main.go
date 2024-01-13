@@ -36,7 +36,6 @@ type NDirectory struct {
 	FileCount      int64  `json:"file_count"`
 	DirectoryCount int64  `json:"directory_count"`
 	ParentID       int64  `json:"parent_id"`
-	NScanID        int64  `json:"nscan_id"`
 }
 
 // Configuration container
@@ -190,7 +189,7 @@ func search(c *gin.Context) {
 	// directories
 	var directories []NDirectory
 	db2 := getDB()
-	rows, err = db2.Query(`SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id, d.nscan_id FROM ndirectory as d WHERE lower(d.name) like ? and ? limit ? offset ?`,
+	rows, err = db2.Query(`SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id FROM ndirectory as d WHERE lower(d.name) like ? and ? limit ? offset ?`,
 		"%"+strings.ToLower(query)+"%", perPage, (page-1)*perPage)
 	defer db2.Close()
 
@@ -199,7 +198,7 @@ func search(c *gin.Context) {
 	} else {
 		for rows.Next() {
 			var d NDirectory
-			rows.Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID, &d.NScanID)
+			rows.Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID)
 			d.Size = sizeString(size)
 			if nt.Valid {
 				d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
@@ -273,7 +272,7 @@ func directoriesController(c *gin.Context) {
 	if id != "" {
 		var d NDirectory
 		db := getDB()
-		err := db.QueryRow("SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id, d.nscan_id FROM ndirectory as d WHERE d.id = ?", id).Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID, &d.NScanID)
+		err := db.QueryRow("SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id FROM ndirectory as d WHERE d.id = ?", id).Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID)
 		defer db.Close()
 		if err != sql.ErrNoRows {
 			d.Size = sizeString(size)
@@ -352,8 +351,7 @@ func directoryDirectoriesController(c *gin.Context) {
         d.size, 
         d.file_count, 
         d.directory_count, 
-        d.parent_id, 
-        d.nscan_id 
+        d.parent_id 
 		FROM ndirectory as d
 		WHERE d.parent_id = ?`
 
@@ -372,7 +370,7 @@ func directoryDirectoriesController(c *gin.Context) {
 			var directories []NDirectory
 			for rows.Next() {
 				var r NDirectory
-				rows.Scan(&r.ID, &r.Name, &r.Path, &nt, &size, &r.FileCount, &r.DirectoryCount, &r.ParentID, &r.NScanID)
+				rows.Scan(&r.ID, &r.Name, &r.Path, &nt, &size, &r.FileCount, &r.DirectoryCount, &r.ParentID)
 				r.Size = sizeString(size)
 				if nt.Valid {
 					r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
