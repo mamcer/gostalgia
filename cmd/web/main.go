@@ -189,8 +189,8 @@ func search(c *gin.Context) {
 	// directories
 	var directories []NDirectory
 	db2 := getDB()
-	rows, err = db2.Query(`SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id FROM ndirectory as d WHERE lower(d.name) like ? and ? limit ? offset ?`,
-		"%"+strings.ToLower(query)+"%", perPage, (page-1)*perPage)
+	rows, err = db2.Query(`SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id FROM ndirectory as d WHERE lower(d.name) like ? and d.date_modified between ? and ? limit ? offset ?`,
+		"%"+strings.ToLower(query)+"%", after, before, perPage, (page-1)*perPage)
 	defer db2.Close()
 
 	if err != nil {
