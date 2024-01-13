@@ -23,15 +23,17 @@
     INSERT INTO `nostalgia`.`ndirectory`
     (`name`,
     `path`,
-    `modified`,
-    `parent_id`,
+    `date_modified`,
     `size`,
-    `count`)
+    `file_count`,
+    `directory_count`,
+    `parent_id`)
     VALUES
     (
     "$",
     "/",
     now(),
+    0,
     0,
     0,
     0);
