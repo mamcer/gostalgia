@@ -82,10 +82,9 @@
 
 ## stash size
 
-MAC format
+Unique file size 
 
-    -- unique files size (size in disk in TiB)
-    select sum(size)/1024/1024/1024/1024 from nfile
+    select sum(size)/1000/1000/1000 as size_GB from nfile
 
 Size of repeated files in GB
 
@@ -95,6 +94,12 @@ Size of repeated files in GB
             where fd.nfile_id = f.id  
             group by id order by r desc) as s
 
+Top 10 repeated files
+
+    select fd.nfile_id as id, f.name as name, count(fd.nfile_id)-1 as repeated_count, (count(fd.nfile_id)-1)*f.size/1000/1000/1000 as size_GB 
+            from nfile_ndirectory as fd, nfile as f 
+            where fd.nfile_id = f.id  
+            group by id,name order by size_GB desc limit 10
 
 ## db schema
 
