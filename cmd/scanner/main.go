@@ -242,25 +242,31 @@ func scan(root string, sname string, db *sql.DB) int {
 						Size:         fileinfo.Size(),
 						Hash:         h,
 					}
-					res, err = stmtFile.Exec(nfile.Name, nfile.Extension, nfile.Path, nfile.DateModified, nfile.Size, nfile.Hash)
-					if err != nil {
-						fmt.Printf("[fail]\n%v\n", err)
-						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file [%v] - %v", nfile.Path, err), ns.ID)
+					if len(nfile.Extension) > 50 {
+						fmt.Printf("error file extension too long '%v' \n", nfile.Name)
+						_, _ = stmtError.Exec(fmt.Sprintf("error file extension too long '%v' \n", nfile.Name), ns.ID)
 						ec += 1
+					} else {
+						res, err = stmtFile.Exec(nfile.Name, nfile.Extension, nfile.Path, nfile.DateModified, nfile.Size, nfile.Hash)
+						if err != nil {
+							fmt.Printf("[fail]\n%v\n", err)
+							_, _ = stmtError.Exec(fmt.Sprintf("error inserting file [%v] - %v", nfile.Path, err), ns.ID)
+							ec += 1
+						}
+
+						lastFileID, _ := res.LastInsertId()
+						_, err := stmtFileScan.Exec(lastFileID, parent.ID, ns.ID, nfile.Name)
+						if err != nil {
+							fmt.Printf("error inserting file_scan '%v'- %v\n", efi, err)
+							_, _ = stmtError.Exec(fmt.Sprintf("error inserting file_scan '%v' - %v", efi, err), ns.ID)
+							ec += 1
+						}
+
+						// copy file
+						//copyFile(ns, p, nfile.Name, stmtError)
+
+						fmt.Printf("%.2f%% - [new] %v\n", (float64(fc)+1)*100/float64(tfc), fp)
 					}
-
-					lastFileID, _ := res.LastInsertId()
-					_, err := stmtFileScan.Exec(lastFileID, parent.ID, ns.ID, nfile.Name)
-					if err != nil {
-						fmt.Printf("error inserting file_scan '%v'- %v\n", efi, err)
-						_, _ = stmtError.Exec(fmt.Sprintf("error inserting file_scan '%v' - %v", efi, err), ns.ID)
-						ec += 1
-					}
-
-					// copy file
-					//copyFile(ns, p, nfile.Name, stmtError)
-
-					fmt.Printf("%.2f%% - [new] %v\n", (float64(fc)+1)*100/float64(tfc), fp)
 				}
 
 				fc++
