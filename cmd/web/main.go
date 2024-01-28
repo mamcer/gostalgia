@@ -17,25 +17,16 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type Nfile struct {
+type NResult struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`
 	Extension    string `json:"extension"`
 	Path         string `json:"path"`
 	DateModified string `json:"date_modified"`
 	Size         string `json:"size"`
-	Hash         string `json:"hash"`
-}
-
-type NDirectory struct {
-	ID             int64  `json:"id"`
-	Name           string `json:"name"`
-	Path           string `json:"path"`
-	DateModified   string `json:"date_modified"`
-	Size           string `json:"size"`
-	FileCount      int64  `json:"file_count"`
-	DirectoryCount int64  `json:"directory_count"`
-	ParentID       int64  `json:"parent_id"`
+	ParentID     int64  `json:"parent_id"`
+	ParentName   string `json:"parent_name"`
+	Type         string `json:"type"`
 }
 
 // Configuration container
@@ -101,9 +92,11 @@ func sizeString(v int64) string {
 }
 
 func search(c *gin.Context) {
+	// GET contains=a&type=[image|doc|sheet|audio|video|zip|any]&only_directories=false&after=1000-01-01&before=9999-12-31&page=1&per_page=50
 	var nt mysql.NullTime
 	var size int64
-	query := c.DefaultQuery("q", "mario")
+	contains := c.DefaultQuery("contains", "mario")
+	onlyDirs := c.DefaultQuery("only_directories", "false")
 	t := c.DefaultQuery("type", "any")
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil {
@@ -115,7 +108,6 @@ func search(c *gin.Context) {
 		fmt.Printf("error converting per page to int: %v", err)
 		perPage = 50
 	}
-
 	layout := "2006-01-02"
 
 	a := c.Query("after")
@@ -130,10 +122,12 @@ func search(c *gin.Context) {
 		before, _ = time.Parse(layout, b)
 	}
 
-	fmt.Printf("query: '%v', type: '%v', after: '%v', before: '%v'\n", query, t, after, before)
+	fmt.Printf("contains: '%v', type: '%v', only_directories: '%v', after: '%v', before: '%v', page: '%v', per_page: '%v'\n", contains, t, onlyDirs, after, before, page, perPage)
 
 	// files
-	var files []Nfile
+	var results []NResult
+	var total int64 = 0
+	var rtype = ""
 
 	db := getDB()
 
@@ -143,93 +137,92 @@ func search(c *gin.Context) {
 						n.path,
 						n.size,
 						n.date_modified as DateModified,
-						n.hash
-				FROM nfile as n
-				WHERE lower(n.name) like ?`
+				FROM nfile as n`
+
+	var where = `WHERE lower(n.name) like ?`
 
 	switch t {
 	case "image":
-		sq += " and n.extension in ('jpeg', 'png', 'jpg', 'bmp')"
+		where += " and n.extension in ('jpeg', 'png', 'jpg', 'bmp')"
 	case "doc":
-		sq += " and n.extension in ('doc', 'docx', 'odt', 'pdf')"
+		where += " and n.extension in ('doc', 'docx', 'odt', 'pdf')"
 	case "sheet":
-		sq += " and n.extension in ('xls', 'xlsx', 'ods')"
+		where += " and n.extension in ('xls', 'xlsx', 'ods')"
 	case "audio":
-		sq += " and n.extension in ('mp3', 'ogg', 'wma', 'arm', 'wav')"
+		where += " and n.extension in ('mp3', 'ogg', 'wma', 'arm', 'wav')"
 	case "video":
-		sq += " and n.extension in ('mp4', 'mkv', 'avi', 'wmv')"
+		where += " and n.extension in ('mp4', 'mkv', 'avi', 'wmv')"
 	case "zip":
-		sq += " and n.extension in ('zip', 'rar', '7z', 'gz')"
+		where += " and n.extension in ('zip', 'rar', '7z', 'gz')"
 	}
 
-	sq += " and n.date_modified between ? and ? limit ? offset ?"
+	where += " and n.date_modified between ? and ?"
+	sq += where + " limit ? offset ?"
 
 	//limit = per_page
 	//offset = (page-1)*per_page
 
+	rtype = "file"
 	rows, err := db.Query(sq,
-		"%"+strings.ToLower(query)+"%", after, before, perPage, (page-1)*perPage)
+		"%"+strings.ToLower(contains)+"%", after, before, perPage, (page-1)*perPage)
+	db.QueryRow("SELECT count(id) from nfile " + fmt.Sprintf(where, "%"+strings.ToLower(contains)+"%", after, before)).Scan(&total)
 	defer db.Close()
 
 	if err != nil {
-		files = nil
+		results = nil
 	} else {
 		for rows.Next() {
-			var r Nfile
-			rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &size, &nt, &r.Hash)
+			var r NResult
+			rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &size, &nt, &r.ParentID, &r.ParentName, rtype)
 			r.Size = sizeString(size)
 			if nt.Valid {
 				r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
 			}
 
-			files = append(files, r)
+			results = append(results, r)
 		}
 	}
 
-	// directories
-	var directories []NDirectory
-	db2 := getDB()
-	rows, err = db2.Query(`SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id FROM ndirectory as d WHERE lower(d.name) like ? and d.date_modified between ? and ? limit ? offset ?`,
-		"%"+strings.ToLower(query)+"%", after, before, perPage, (page-1)*perPage)
-	defer db2.Close()
+	// // directories
+	// var directories []NDirectory
+	// db2 := getDB()
+	// rows, err = db2.Query(`SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id FROM ndirectory as d WHERE lower(d.name) like ? and d.date_modified between ? and ? limit ? offset ?`,
+	// 	"%"+strings.ToLower(contains)+"%", after, before, perPage, (page-1)*perPage)
+	// defer db2.Close()
 
-	if err != nil {
-		directories = nil
-	} else {
-		for rows.Next() {
-			var d NDirectory
-			rows.Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID)
-			d.Size = sizeString(size)
-			if nt.Valid {
-				d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
-			}
+	// if err != nil {
+	// 	directories = nil
+	// } else {
+	// 	for rows.Next() {
+	// 		var d NDirectory
+	// 		rows.Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID)
+	// 		d.Size = sizeString(size)
+	// 		if nt.Valid {
+	// 			d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+	// 		}
 
-			directories = append(directories, d)
-		}
-	}
+	// 		directories = append(directories, d)
+	// 	}
+	// }
 
 	// result
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
-	if files == nil && directories == nil {
+	if results == nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"query":             query,
-			"total_directories": 0,
-			"total_files":       0,
-			"page":              0,
-			"per_page":          0,
-			"directories":       nil,
-			"files":             nil,
+			"results":  nil,
+			"contains": contains,
+			"page":     0,
+			"per_page": 0,
+			"total":    0,
 		})
 	} else {
 		c.JSON(http.StatusOK, gin.H{
-			"query":             query,
-			"total_directories": len(directories),
-			"total_files":       len(files),
-			"page":              page,
-			"per_page":          perPage,
-			"directories":       directories,
-			"files":             files,
+			"results":  results,
+			"contains": contains,
+			"page":     page,
+			"per_page": perPage,
+			"total":    len(total),
 		})
 	}
 }
