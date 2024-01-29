@@ -179,6 +179,18 @@ func search(c *gin.Context) {
 		where += " and nf.extension in ('mp4', 'mkv', 'avi', 'wmv')"
 	case "zip":
 		where += " and nf.extension in ('zip', 'rar', '7z', 'gz')"
+	default:
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+		if results == nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status": "400",
+				"title":  "invalid type",
+				"detail": "valid types: image, doc, sheet, audio, video, zip",
+			})
+
+		}
+		return
 	}
 
 	where += " and nf.date_modified between ? and ?"
@@ -187,53 +199,55 @@ func search(c *gin.Context) {
 	//limit = per_page
 	//offset = (page-1)*per_page
 
-	rtype = "file"
-	fmt.Printf("query:'%v'\n", sq)
-	rows, err := db.Query(sq,
-		"%"+strings.ToLower(contains)+"%", after, before, perPage, (page-1)*perPage)
-	defer db.Close()
+	if onlyDirs == "false" {
+		rtype = "file"
+		//fmt.Printf("query:'%v'\n", sq)
+		rows, err := db.Query(sq,
+			"%"+strings.ToLower(contains)+"%", after, before, perPage, (page-1)*perPage)
+		defer db.Close()
 
-	if err != nil {
-		results = nil
-	} else {
-		for rows.Next() {
-			var r NResult
-			rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &nt, &size, &r.ParentID, &r.ParentName)
-			r.Size = sizeString(size)
-			r.Type = rtype
-			if nt.Valid {
-				r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+		if err != nil {
+			results = nil
+		} else {
+			for rows.Next() {
+				var r NResult
+				rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &nt, &size, &r.ParentID, &r.ParentName)
+				r.Size = sizeString(size)
+				r.Type = rtype
+				if nt.Valid {
+					r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+				}
+
+				results = append(results, r)
 			}
-
-			results = append(results, r)
 		}
+
+		//fmt.Printf("SELECT count(nf.id) FROM nfile as nf WHERE lower(nf.name) like ? " + where + "\n")
+
+		db.QueryRow("SELECT count(nf.id) FROM nfile as nf, nfile_ndirectory as nfd, ndirectory as nd WHERE lower(nf.name) like ? and nfd.nfile_id = nf.id and nfd.ndirectory_id = nd.id "+where, "%"+strings.ToLower(contains)+"%", after, before).Scan(&total)
+
+		// // directories
+		// var directories []NDirectory
+		// db2 := getDB()
+		// rows, err = db2.Query(`SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id FROM ndirectory as d WHERE lower(d.name) like ? and d.date_modified between ? and ? limit ? offset ?`,
+		// 	"%"+strings.ToLower(contains)+"%", after, before, perPage, (page-1)*perPage)
+		// defer db2.Close()
+
+		// if err != nil {
+		// 	directories = nil
+		// } else {
+		// 	for rows.Next() {
+		// 		var d NDirectory
+		// 		rows.Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID)
+		// 		d.Size = sizeString(size)
+		// 		if nt.Valid {
+		// 			d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+		// 		}
+
+		// 		directories = append(directories, d)
+		// 	}
+		// }
 	}
-
-	fmt.Printf("SELECT count(nf.id) FROM nfile as nf WHERE lower(nf.name) like ? " + where + "\n")
-
-	db.QueryRow("SELECT count(nf.id) FROM nfile as nf, nfile_ndirectory as nfd, ndirectory as nd WHERE lower(nf.name) like ? and nfd.nfile_id = nf.id and nfd.ndirectory_id = nd.id "+where, "%"+strings.ToLower(contains)+"%", after, before).Scan(&total)
-
-	// // directories
-	// var directories []NDirectory
-	// db2 := getDB()
-	// rows, err = db2.Query(`SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id FROM ndirectory as d WHERE lower(d.name) like ? and d.date_modified between ? and ? limit ? offset ?`,
-	// 	"%"+strings.ToLower(contains)+"%", after, before, perPage, (page-1)*perPage)
-	// defer db2.Close()
-
-	// if err != nil {
-	// 	directories = nil
-	// } else {
-	// 	for rows.Next() {
-	// 		var d NDirectory
-	// 		rows.Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID)
-	// 		d.Size = sizeString(size)
-	// 		if nt.Valid {
-	// 			d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
-	// 		}
-
-	// 		directories = append(directories, d)
-	// 	}
-	// }
 
 	// result
 	c.Header("Access-Control-Allow-Origin", "*")
