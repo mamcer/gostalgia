@@ -29,6 +29,28 @@ type NResult struct {
 	Type         string `json:"type"`
 }
 
+type Ndirectory struct {
+	ID             int64  // directory id
+	Name           string // directory name
+	Path           string // directory path
+	DateModified   string // date modified
+	Size           string // directory size (in bytes)
+	FileCount      int64  // directory file count
+	Fpath          string // current file path
+	DirectoryCount int64  // directory directory count
+	ParentID       int64  // parent directory id
+}
+
+type Nfile struct {
+	ID           int64  // file id
+	Name         string // file name
+	Extension    string //file extension
+	Path         string // file path
+	DateModified string // file date modified
+	Size         string // file size (in bytes)
+	Hash         string // file hash
+}
+
 // Configuration container
 type Configuration struct {
 	ApiPort          string
@@ -101,7 +123,7 @@ func search(c *gin.Context) {
 	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil {
 		fmt.Printf("error converting page to int: %v", err)
-		page = 1
+		page = 0
 	}
 	perPage, err := strconv.Atoi(c.DefaultQuery("per_page", "50"))
 	if err != nil {
@@ -131,41 +153,44 @@ func search(c *gin.Context) {
 
 	db := getDB()
 
-	var sq = `SELECT 	n.id as ID,
-						n.name,
-						n.extension,
-						n.path,
-						n.size,
-						n.date_modified as DateModified,
-				FROM nfile as n`
+	var sq = `SELECT nf.id as ID, 
+	nf.name,
+	nf.extension,
+	nf.path,
+	nf.date_modified as DateModified,
+	nf.size,
+	nd.id,
+	nd.name
+	FROM nfile as nf, nfile_ndirectory as nfd, ndirectory as nd 
+	WHERE lower(nf.name) like ? and nfd.nfile_id = nf.id and nfd.ndirectory_id = nd.id`
 
-	var where = `WHERE lower(n.name) like ?`
+	var where = ""
 
 	switch t {
 	case "image":
-		where += " and n.extension in ('jpeg', 'png', 'jpg', 'bmp')"
+		where += " and nf.extension in ('jpeg', 'png', 'jpg', 'bmp')"
 	case "doc":
-		where += " and n.extension in ('doc', 'docx', 'odt', 'pdf')"
+		where += " and nf.extension in ('doc', 'docx', 'odt', 'pdf')"
 	case "sheet":
-		where += " and n.extension in ('xls', 'xlsx', 'ods')"
+		where += " and nf.extension in ('xls', 'xlsx', 'ods')"
 	case "audio":
-		where += " and n.extension in ('mp3', 'ogg', 'wma', 'arm', 'wav')"
+		where += " and nf.extension in ('mp3', 'ogg', 'wma', 'arm', 'wav')"
 	case "video":
-		where += " and n.extension in ('mp4', 'mkv', 'avi', 'wmv')"
+		where += " and nf.extension in ('mp4', 'mkv', 'avi', 'wmv')"
 	case "zip":
-		where += " and n.extension in ('zip', 'rar', '7z', 'gz')"
+		where += " and nf.extension in ('zip', 'rar', '7z', 'gz')"
 	}
 
-	where += " and n.date_modified between ? and ?"
+	where += " and nf.date_modified between ? and ?"
 	sq += where + " limit ? offset ?"
 
 	//limit = per_page
 	//offset = (page-1)*per_page
 
 	rtype = "file"
+	fmt.Printf("query:'%v'\n", sq)
 	rows, err := db.Query(sq,
 		"%"+strings.ToLower(contains)+"%", after, before, perPage, (page-1)*perPage)
-	db.QueryRow("SELECT count(id) from nfile " + fmt.Sprintf(where, "%"+strings.ToLower(contains)+"%", after, before)).Scan(&total)
 	defer db.Close()
 
 	if err != nil {
@@ -173,8 +198,9 @@ func search(c *gin.Context) {
 	} else {
 		for rows.Next() {
 			var r NResult
-			rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &size, &nt, &r.ParentID, &r.ParentName, rtype)
+			rows.Scan(&r.ID, &r.Name, &r.Extension, &r.Path, &nt, &size, &r.ParentID, &r.ParentName)
 			r.Size = sizeString(size)
+			r.Type = rtype
 			if nt.Valid {
 				r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
 			}
@@ -182,6 +208,10 @@ func search(c *gin.Context) {
 			results = append(results, r)
 		}
 	}
+
+	fmt.Printf("SELECT count(nf.id) FROM nfile as nf WHERE lower(nf.name) like ? " + where + "\n")
+
+	db.QueryRow("SELECT count(nf.id) FROM nfile as nf, nfile_ndirectory as nfd, ndirectory as nd WHERE lower(nf.name) like ? and nfd.nfile_id = nf.id and nfd.ndirectory_id = nd.id "+where, "%"+strings.ToLower(contains)+"%", after, before).Scan(&total)
 
 	// // directories
 	// var directories []NDirectory
@@ -222,7 +252,7 @@ func search(c *gin.Context) {
 			"contains": contains,
 			"page":     page,
 			"per_page": perPage,
-			"total":    len(total),
+			"total":    total,
 		})
 	}
 }
@@ -263,7 +293,7 @@ func directoriesController(c *gin.Context) {
 	var size int64
 
 	if id != "" {
-		var d NDirectory
+		var d Ndirectory
 		db := getDB()
 		err := db.QueryRow("SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id FROM ndirectory as d WHERE d.id = ?", id).Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID)
 		defer db.Close()
@@ -360,9 +390,9 @@ func directoryDirectoriesController(c *gin.Context) {
 			c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
 			c.JSON(http.StatusNotFound, struct{}{})
 		} else {
-			var directories []NDirectory
+			var directories []Ndirectory
 			for rows.Next() {
-				var r NDirectory
+				var r Ndirectory
 				rows.Scan(&r.ID, &r.Name, &r.Path, &nt, &size, &r.FileCount, &r.DirectoryCount, &r.ParentID)
 				r.Size = sizeString(size)
 				if nt.Valid {
