@@ -30,15 +30,15 @@ type NResult struct {
 }
 
 type Ndirectory struct {
-	ID             int64  // directory id
-	Name           string // directory name
-	Path           string // directory path
-	DateModified   string // date modified
-	Size           string // directory size (in bytes)
+	ID             int64  `json:"id"`
+	Name           string `json:"name"`
+	Path           string `json:"path"`
+	DateModified   string `json:"date_modified"`
+	Size           string `json:"size"`
 	FileCount      int64  // directory file count
 	Fpath          string // current file path
 	DirectoryCount int64  // directory directory count
-	ParentID       int64  // parent directory id
+	ParentID       int64  `json:"parent_id"`
 }
 
 type Nfile struct {
@@ -144,7 +144,7 @@ func search(c *gin.Context) {
 		before, _ = time.Parse(layout, b)
 	}
 
-	fmt.Printf("contains: '%v', type: '%v', only_directories: '%v', after: '%v', before: '%v', page: '%v', per_page: '%v'\n", contains, t, onlyDirs, after, before, page, perPage)
+	//fmt.Printf("contains: '%v', type: '%v', only_directories: '%v', after: '%v', before: '%v', page: '%v', per_page: '%v'\n", contains, t, onlyDirs, after, before, page, perPage)
 
 	// files
 	var results []NResult
@@ -153,7 +153,33 @@ func search(c *gin.Context) {
 
 	db := getDB()
 
-	var sq = `SELECT nf.id as ID, 
+	if onlyDirs == "true" {
+		t = "any"
+		rtype = "directory"
+		db := getDB()
+		rows, err := db.Query(`SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.parent_id, pd.name FROM ndirectory as d, ndirectory as pd WHERE lower(d.name) like ? and d.parent_id = pd.id and d.date_modified between ? and ? limit ? offset ?`,
+			"%"+strings.ToLower(contains)+"%", after, before, perPage, (page-1)*perPage)
+		defer db.Close()
+
+		if err != nil {
+			results = nil
+		} else {
+			for rows.Next() {
+				var r NResult
+				rows.Scan(&r.ID, &r.Name, &r.Path, &nt, &size, &r.ParentID, &r.ParentName)
+				r.Size = sizeString(size)
+				r.Type = rtype
+				if nt.Valid {
+					r.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
+				}
+
+				results = append(results, r)
+			}
+		}
+
+		db.QueryRow("SELECT count(d.id) FROM ndirectory as d WHERE lower(d.name) like ? and d.date_modified between ? and ?", "%"+strings.ToLower(contains)+"%", after, before).Scan(&total)
+	} else {
+		var sq = `SELECT nf.id as ID, 
 	nf.name,
 	nf.extension,
 	nf.path,
@@ -164,42 +190,42 @@ func search(c *gin.Context) {
 	FROM nfile as nf, nfile_ndirectory as nfd, ndirectory as nd 
 	WHERE lower(nf.name) like ? and nfd.nfile_id = nf.id and nfd.ndirectory_id = nd.id`
 
-	var where = ""
+		var where = ""
 
-	switch t {
-	case "image":
-		where += " and nf.extension in ('jpeg', 'png', 'jpg', 'bmp')"
-	case "doc":
-		where += " and nf.extension in ('doc', 'docx', 'odt', 'pdf')"
-	case "sheet":
-		where += " and nf.extension in ('xls', 'xlsx', 'ods')"
-	case "audio":
-		where += " and nf.extension in ('mp3', 'ogg', 'wma', 'arm', 'wav')"
-	case "video":
-		where += " and nf.extension in ('mp4', 'mkv', 'avi', 'wmv')"
-	case "zip":
-		where += " and nf.extension in ('zip', 'rar', '7z', 'gz')"
-	default:
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
-		if results == nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"status": "400",
-				"title":  "invalid type",
-				"detail": "valid types: image, doc, sheet, audio, video, zip",
-			})
-
+		switch t {
+		case "image":
+			where += " and nf.extension in ('jpeg', 'png', 'jpg', 'bmp')"
+		case "doc":
+			where += " and nf.extension in ('doc', 'docx', 'odt', 'pdf')"
+		case "sheet":
+			where += " and nf.extension in ('xls', 'xlsx', 'ods')"
+		case "audio":
+			where += " and nf.extension in ('mp3', 'ogg', 'wma', 'arm', 'wav')"
+		case "video":
+			where += " and nf.extension in ('mp4', 'mkv', 'avi', 'wmv')"
+		case "zip":
+			where += " and nf.extension in ('zip', 'rar', '7z', 'gz')"
+		case "any":
+			where += " "
+		default:
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Headers", "access-control-allow-origin, access-control-allow-headers")
+			if results == nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"status": "400",
+					"title":  "invalid type",
+					"detail": "valid types: image, doc, sheet, audio, video, zip",
+				})
+			}
+			return
 		}
-		return
-	}
 
-	where += " and nf.date_modified between ? and ?"
-	sq += where + " limit ? offset ?"
+		where += " and nf.date_modified between ? and ?"
+		sq += where + " limit ? offset ?"
 
-	//limit = per_page
-	//offset = (page-1)*per_page
+		//limit = per_page
+		//offset = (page-1)*per_page
 
-	if onlyDirs == "false" {
 		rtype = "file"
 		//fmt.Printf("query:'%v'\n", sq)
 		rows, err := db.Query(sq,
@@ -222,31 +248,9 @@ func search(c *gin.Context) {
 			}
 		}
 
-		//fmt.Printf("SELECT count(nf.id) FROM nfile as nf WHERE lower(nf.name) like ? " + where + "\n")
+		// fmt.Printf("SELECT count(nf.id) FROM nfile as nf WHERE lower(nf.name) like ? " + where + "\n")
 
 		db.QueryRow("SELECT count(nf.id) FROM nfile as nf, nfile_ndirectory as nfd, ndirectory as nd WHERE lower(nf.name) like ? and nfd.nfile_id = nf.id and nfd.ndirectory_id = nd.id "+where, "%"+strings.ToLower(contains)+"%", after, before).Scan(&total)
-
-		// // directories
-		// var directories []NDirectory
-		// db2 := getDB()
-		// rows, err = db2.Query(`SELECT d.id as ID, d.name, d.path, d.date_modified as DateModified, d.size, d.file_count, d.directory_count, d.parent_id FROM ndirectory as d WHERE lower(d.name) like ? and d.date_modified between ? and ? limit ? offset ?`,
-		// 	"%"+strings.ToLower(contains)+"%", after, before, perPage, (page-1)*perPage)
-		// defer db2.Close()
-
-		// if err != nil {
-		// 	directories = nil
-		// } else {
-		// 	for rows.Next() {
-		// 		var d NDirectory
-		// 		rows.Scan(&d.ID, &d.Name, &d.Path, &nt, &size, &d.FileCount, &d.DirectoryCount, &d.ParentID)
-		// 		d.Size = sizeString(size)
-		// 		if nt.Valid {
-		// 			d.DateModified = fmt.Sprintf("%02d-%02d-%d", nt.Time.Day(), nt.Time.Month(), nt.Time.Year())
-		// 		}
-
-		// 		directories = append(directories, d)
-		// 	}
-		// }
 	}
 
 	// result
@@ -455,8 +459,8 @@ func main() {
 	v1.GET("/files/:id", fileController)
 	v1.OPTIONS("/files/:id", preflight)
 
-	v1.GET("/filescount", filesCount)
-	v1.OPTIONS("/filescount", preflight)
+	v1.GET("/files/count", filesCount)
+	v1.OPTIONS("/files/count", preflight)
 
 	v1.GET("/directories/:id", directoriesController)
 	v1.OPTIONS("/directories/:id", preflight)

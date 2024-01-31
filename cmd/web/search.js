@@ -64,9 +64,9 @@ document.onreadystatechange = function () {
         var request = new XMLHttpRequest();
 
         if (showAdvancedSearch) {
-            request.open('GET', config.api + '/search?q=' + query + '&type=' + type + '&after=' + from + '&before=' + to + '&id=' + id);
+            request.open('GET', config.api + '/search?contains=' + query + '&type=' + type + '&after=' + from + '&before=' + to + '&id=' + id);
         } else {
-            request.open('GET', config.api + '/search?q=' + query);
+            request.open('GET', config.api + '/search?contains=' + query);
         }
 
         request.onreadystatechange = function () {
@@ -85,28 +85,16 @@ document.onreadystatechange = function () {
                     content += '</thead>'
                     content += '<tbody>'
 
-                    // directories
-                    if (data.directories != null) {
-                        for (var i = 0; i < data.directories.length; i++) {
-                            content += '<tr>'
-                            content += `<td>[<a href="dir.html?id=${data.directories[i].id}">${data.directories[i].name}</a>]</td>`
-                            content += `<td>${data.directories[i].date_modified}</td>`
-                            content += `<td>${data.directories[i].size}</td>`
-                            content += `<td>hello</td>`
-                            content += '</tr>'
-                        }
-                    }
-
-                    // files
-                    if (data.files != null) {
-                        for (var i = 0; i < data.files.length; i++) {
-                            path = data.files[i].path + "/" + data.files[i].name;
+                    // results
+                    if (data.results != null) {
+                        for (var i = 0; i < data.results.length; i++) {
+                            path = data.results[i].path + "/" + data.results[i].name;
                             path = path.replace(/'/g, "\\'");
                             content += '<tr>'
-                            content += `<td><a href="javascript:window.open('${path}', '_blank');">${data.files[i].name}</a></td>`
-                            content += `<td>${data.files[i].date_modified}</td>`
-                            content += `<td>${data.files[i].size}</td>`
-                            content += `<td><a href='dir.html?id=${data.files[i].ndirectory_id}'>${data.files[i].ndirectory_name}</a></td>`
+                            content += `<td><a href="javascript:window.open('${path}', '_blank');">${data.results[i].name}</a></td>`
+                            content += `<td>${data.results[i].date_modified}</td>`
+                            content += `<td>${data.results[i].size}</td>`
+                            content += `<td><a href='dir.html?id=${data.results[i].parent_id}'>${data.results[i].parent_name}</a></td>`
                             content += '</tr>'
                         }
                     }
@@ -117,15 +105,12 @@ document.onreadystatechange = function () {
                     result.innerHTML = content;
 
                     var rc = 0
-                    if (data.files != null) {
-                        rc += data.files.length
-                    }
-                    if (data.directories != null) {
-                        rc += data.directories.length
+                    if (data.results != null) {
+                        rc += data.results.length
                     }
 
                     message.style.display = "block";
-                    message.innerHTML = `<p>${rc} results for '${data.query}'</p>`;
+                    message.innerHTML = `<p>${rc} results for '${data.contains}'</p>`;
                 } else if (request.status === 404) {
                     message.style.display = "block";
                     message.innerHTML = "no results for '" + query + "'";

@@ -154,9 +154,9 @@ error codes
 
     404 if there is no directory with id [id]
  
-## filescount
+## files/count
 
-GET /v1/filescount
+GET /v1/files/count
 
 > returns the total database file count
 
@@ -164,7 +164,7 @@ Responses: 200
 
 request example
 
-    curl -s 'http://localhost:3001/v1/filescount' | jq .
+    curl -s 'http://localhost:3001/v1/files/count' | jq .
 
 response example
 

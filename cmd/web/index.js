@@ -20,7 +20,7 @@ document.onreadystatechange = function () {
 
 	function welcomeMessage() {
 		var request = new XMLHttpRequest();
-		request.open('GET', config.api + '/filescount');
+		request.open('GET', config.api + '/files/count');
 		request.onreadystatechange = function () {
 			if (request.readyState == 4) {
 				if (request.status === 200) {
