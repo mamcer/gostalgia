@@ -19,31 +19,34 @@ var (
 )
 
 type Scan struct {
-	files       *FileNode
-	directories *DirNode
-	root        *DirItem
+	files       []FileItem
+	directories []DirItem
+	root        DirNode
 }
 
-type FileNode struct {
+type FileItem struct {
 	name string
-	next *FileNode
-}
-
-type DirNode struct {
-	name string
-	next *DirNode
 }
 
 type DirItem struct {
-	name  string
-	files *FileNode
-	leafs *DirItem
+	name string
 }
 
-func read(p string) Scan {
-	var dirs []string = []string{p}
+type DirNode struct {
+	info  DirItem
+	files []FileItem
+	leafs []DirNode
+}
+
+func read(p string) *Scan {
+	d := DirItem{name: p}
+	r := DirNode{info: d}
+	s := &Scan{root: r}
+	s.directories = append(s.directories, d)
+
+	var dirs []*DirNode = []*DirNode{&r}
 	for i := 0; i < len(dirs); i++ {
-		files, err := os.ReadDir(dirs[i])
+		files, err := os.ReadDir(dirs[i].info.name)
 		if err != nil {
 			fmt.Printf("error reading directory path: [%v] - %v", dirs[i], err)
 		}
@@ -57,19 +60,51 @@ func read(p string) Scan {
 			fp := path.Join(p, dirEntry.Name())
 			if dirEntry.IsDir() {
 				fmt.Printf("dir: '%v'\n", fp)
-				dirs = append(dirs, fp)
+				d := DirItem{name: fp}
+				l := DirNode{info: d}
+				(*dirs[i]).leafs = append(dirs[i].leafs, l)
+				dirs = append(dirs, &l)
+				s.directories = append(s.directories, d)
 			} else {
+				f := FileItem{name: fp}
+				dirs[i].files = append(dirs[i].files, f)
+				s.files = append(s.files, f)
 				fmt.Printf("file: '%v'\n", fp)
 			}
 		}
 	}
 
-	return Scan{}
+	return s
+}
+
+func printDirNode(c *DirNode, p *DirNode) {
+	if p != nil {
+		fmt.Printf("parent dir: '%v'\n", p.info.name)
+	}
+
+	fmt.Printf("current dir: '%v'\n", c.info.name)
+	fmt.Printf("files:\n")
+	for _, f := range c.files {
+		fmt.Printf("	'%v'\n", f.name)
+	}
+	for _, l := range c.leafs {
+		printDirNode(&l, c)
+	}
+}
+
+func printScan(s *Scan) {
+	fmt.Printf("total files: %v\n", len(s.files))
+	fmt.Printf("total directories: %v\n", len(s.directories))
+
+	fmt.Printf("root dir: '%v'\n", s.root.info.name)
+	printDirNode(&s.root, nil)
 }
 
 func scan(ccmd *cobra.Command, args []string) {
 	sp := viper.GetString("scan_path")
 	fmt.Printf("hello there nostalgia config: %v, tags: %v\n", sp, tags)
 
-	read(sp)
+	s := read(sp)
+
+	printScan(s)
 }
