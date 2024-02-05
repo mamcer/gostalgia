@@ -19,8 +19,8 @@ var (
 )
 
 type Scan struct {
-	files       []FileItem
-	directories []DirItem
+	files       []*FileItem
+	directories []*DirItem
 	root        *DirNode
 }
 
@@ -34,7 +34,7 @@ type DirItem struct {
 
 type DirNode struct {
 	info  *DirItem
-	files []FileItem
+	files []*FileItem
 	leafs []*DirNode
 }
 
@@ -42,25 +42,25 @@ func (dn *DirNode) AddLeaf(l *DirNode) {
 	dn.leafs = append(dn.leafs, l)
 }
 
-func (dn *DirNode) AddFile(f FileItem) {
+func (dn *DirNode) AddFile(f *FileItem) {
 	dn.files = append(dn.files, f)
 }
 
-func (s *Scan) AddFile(f FileItem) {
+func (s *Scan) AddFile(f *FileItem) {
 	s.files = append(s.files, f)
 }
 
-func (s *Scan) AddDirectory(d DirItem) {
+func (s *Scan) AddDirectory(d *DirItem) {
 	s.directories = append(s.directories, d)
 }
 
 func read(p string) *Scan {
-	d := DirItem{name: p}
-	r := DirNode{info: &d}
-	s := &Scan{root: &r}
-	s.directories = append(s.directories, d)
+	d := &DirItem{name: p}
+	r := &DirNode{info: d}
+	s := &Scan{root: r}
+	s.AddDirectory(d)
 
-	var dirs []*DirNode = []*DirNode{&r}
+	var dirs []*DirNode = []*DirNode{r}
 	for i := 0; i < len(dirs); i++ {
 		files, err := os.ReadDir(dirs[i].info.name)
 		if err != nil {
@@ -75,17 +75,15 @@ func read(p string) *Scan {
 
 			fp := path.Join(p, dirEntry.Name())
 			if dirEntry.IsDir() {
-				fmt.Printf("dir: '%v'\n", fp)
-				d := DirItem{name: fp}
-				l := DirNode{info: &d}
-				dirs[i].AddLeaf(&l)
-				dirs = append(dirs, &l)
+				d := &DirItem{name: fp}
+				l := &DirNode{info: d}
+				dirs[i].AddLeaf(l)
 				s.AddDirectory(d)
+				dirs = append(dirs, l)
 			} else {
-				f := FileItem{name: fp}
+				f := &FileItem{name: fp}
 				dirs[i].AddFile(f)
 				s.AddFile(f)
-				fmt.Printf("file: '%v'\n", fp)
 			}
 		}
 	}
