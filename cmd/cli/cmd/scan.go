@@ -21,7 +21,7 @@ var (
 type Scan struct {
 	files       []FileItem
 	directories []DirItem
-	root        DirNode
+	root        *DirNode
 }
 
 type FileItem struct {
@@ -33,15 +33,31 @@ type DirItem struct {
 }
 
 type DirNode struct {
-	info  DirItem
+	info  *DirItem
 	files []FileItem
-	leafs []DirNode
+	leafs []*DirNode
+}
+
+func (dn *DirNode) AddLeaf(l *DirNode) {
+	dn.leafs = append(dn.leafs, l)
+}
+
+func (dn *DirNode) AddFile(f FileItem) {
+	dn.files = append(dn.files, f)
+}
+
+func (s *Scan) AddFile(f FileItem) {
+	s.files = append(s.files, f)
+}
+
+func (s *Scan) AddDirectory(d DirItem) {
+	s.directories = append(s.directories, d)
 }
 
 func read(p string) *Scan {
 	d := DirItem{name: p}
-	r := DirNode{info: d}
-	s := &Scan{root: r}
+	r := DirNode{info: &d}
+	s := &Scan{root: &r}
 	s.directories = append(s.directories, d)
 
 	var dirs []*DirNode = []*DirNode{&r}
@@ -61,14 +77,14 @@ func read(p string) *Scan {
 			if dirEntry.IsDir() {
 				fmt.Printf("dir: '%v'\n", fp)
 				d := DirItem{name: fp}
-				l := DirNode{info: d}
-				(*dirs[i]).leafs = append(dirs[i].leafs, l)
+				l := DirNode{info: &d}
+				dirs[i].AddLeaf(&l)
 				dirs = append(dirs, &l)
-				s.directories = append(s.directories, d)
+				s.AddDirectory(d)
 			} else {
 				f := FileItem{name: fp}
-				dirs[i].files = append(dirs[i].files, f)
-				s.files = append(s.files, f)
+				dirs[i].AddFile(f)
+				s.AddFile(f)
 				fmt.Printf("file: '%v'\n", fp)
 			}
 		}
@@ -88,7 +104,7 @@ func printDirNode(c *DirNode, p *DirNode) {
 		fmt.Printf("	'%v'\n", f.name)
 	}
 	for _, l := range c.leafs {
-		printDirNode(&l, c)
+		printDirNode(l, c)
 	}
 }
 
@@ -97,7 +113,7 @@ func printScan(s *Scan) {
 	fmt.Printf("total directories: %v\n", len(s.directories))
 
 	fmt.Printf("root dir: '%v'\n", s.root.info.name)
-	printDirNode(&s.root, nil)
+	printDirNode(s.root, nil)
 }
 
 func scan(ccmd *cobra.Command, args []string) {
