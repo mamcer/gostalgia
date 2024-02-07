@@ -234,4 +234,6 @@ func scan(ccmd *cobra.Command, args []string) {
 	elapsed := time.Since(start)
 	fmt.Printf("scan process finished: %v\n", elapsed)
 
+	fmt.Println("press enter key to continue")
+	fmt.Scanln()
 }
