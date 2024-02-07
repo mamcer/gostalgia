@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,11 +48,13 @@ type FileItem struct {
 }
 
 type DirItem struct {
-	ID           int64     // directory id
-	Name         string    // directory name
-	Path         string    // directory path
-	DateModified time.Time // date modified
-	Size         int64     // directory size (in bytes)
+	ID             int64     // directory id
+	Name           string    // directory name
+	Path           string    // directory path
+	DateModified   time.Time // date modified
+	Size           int64     // directory size (in bytes)
+	Exists         bool
+	ExistingFileID int64
 }
 
 type DirNode struct {
@@ -130,10 +133,10 @@ func read(p string) *Scan {
 }
 
 func printDirNode(c *DirNode, p *DirNode) {
-	fmt.Printf("current dir: '%v'\n", c.info.Name)
+	fmt.Printf("current dir: '%v' size: %v\n", c.info.Name, sizeString(c.info.Size))
 	fmt.Printf("files:\n")
 	for _, f := range c.files {
-		fmt.Printf("	'%v', hash: %v\n", f.Name, f.Hash)
+		fmt.Printf("	'%v', hash: %v, size: %v\n", f.Name, f.Hash, sizeString(f.Size))
 	}
 	for _, l := range c.leafs {
 		printDirNode(l, c)
@@ -141,7 +144,7 @@ func printDirNode(c *DirNode, p *DirNode) {
 }
 
 func printScan(s *Scan) {
-	fmt.Printf("total files: %v\n", len(s.files))
+	fmt.Printf("\ntotal files: %v\n", len(s.files))
 	fmt.Printf("total directories: %v\n", len(s.directories))
 
 	printDirNode(s.root, nil)
@@ -151,6 +154,45 @@ func hashFiles(s *Scan) *Scan {
 	for _, f := range s.files {
 		f.Hash, _ = hash.Calculate(f.Path)
 	}
+
+	return s
+}
+
+func sizeString(v int64) string {
+	r := float64(v)
+	u := 1000.0
+	if v > int64(u) {
+		r = r / u
+		if r > u {
+			r = r / u
+			if r > u {
+				r = r / u
+				return fmt.Sprintf("%v GB", strconv.FormatFloat(r, 'f', 1, 64))
+			} else {
+				return fmt.Sprintf("%v MB", strconv.FormatFloat(r, 'f', 1, 64))
+			}
+		}
+		return fmt.Sprintf("%v kB", strconv.FormatFloat(r, 'f', 1, 64))
+	}
+
+	return fmt.Sprintf("%v Bytes", strconv.FormatFloat(r, 'f', 1, 64))
+}
+
+func calculateSize(d *DirNode) int64 {
+	var s int64 = 0
+	for _, f := range d.files {
+		s += f.Size
+	}
+	for _, l := range d.leafs {
+		s += calculateSize(l)
+	}
+
+	d.info.Size = s
+	return s
+}
+
+func size(s *Scan) *Scan {
+	calculateSize(s.root)
 
 	return s
 }
@@ -180,6 +222,11 @@ func scan(ccmd *cobra.Command, args []string) {
 	// hash
 	fmt.Printf("\nhashing files...")
 	s = hashFiles(s)
+	fmt.Printf("OK\n")
+
+	// file size
+	fmt.Printf("\nupdating file size...")
+	s = size(s)
 	fmt.Printf("OK\n")
 
 	printScan(s)
