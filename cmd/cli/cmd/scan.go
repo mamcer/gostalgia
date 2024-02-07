@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/mamcer/nostalgia/internal/pkg/hash"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -19,17 +23,35 @@ var (
 )
 
 type Scan struct {
+	ID                int64     // scan id
+	DateCreated       time.Time // scan creation date
+	Duration          int64     // scan duration (in milliseconds)
+	FileCount         int64     // file scan count
+	DirectoryCount    int64     // directory scan count
+	FileRepeatedCount int64     // file repeated scan count
+	Status            int64     // scan status = done, inprogress, error
+
 	files       []*FileItem
 	directories []*DirItem
 	root        *DirNode
 }
 
 type FileItem struct {
-	name string
+	ID           int64     // file id
+	Name         string    // file name
+	Extension    string    //file extension
+	Path         string    // file path
+	DateModified time.Time // file date modified
+	Size         int64     // file size (in bytes)
+	Hash         string    // file hash
 }
 
 type DirItem struct {
-	name string
+	ID           int64     // directory id
+	Name         string    // directory name
+	Path         string    // directory path
+	DateModified time.Time // date modified
+	Size         int64     // directory size (in bytes)
 }
 
 type DirNode struct {
@@ -55,14 +77,17 @@ func (s *Scan) AddDirectory(d *DirItem) {
 }
 
 func read(p string) *Scan {
-	d := &DirItem{name: p}
+	d := &DirItem{
+		Name: "root",
+		Path: p,
+	}
 	r := &DirNode{info: d}
 	s := &Scan{root: r}
 	s.AddDirectory(d)
 
 	var dirs []*DirNode = []*DirNode{r}
 	for i := 0; i < len(dirs); i++ {
-		files, err := os.ReadDir(dirs[i].info.name)
+		files, err := os.ReadDir(dirs[i].info.Path)
 		if err != nil {
 			fmt.Printf("error reading directory path: [%v] - %v", dirs[i], err)
 		}
@@ -73,15 +98,28 @@ func read(p string) *Scan {
 				continue
 			}
 
-			fp := path.Join(p, dirEntry.Name())
+			fp := path.Join(dirs[i].info.Path, dirEntry.Name())
+			fi, _ := dirEntry.Info()
 			if dirEntry.IsDir() {
-				d := &DirItem{name: fp}
+				d := &DirItem{
+					Name:         dirEntry.Name(),
+					Path:         fp,
+					Size:         fi.Size(),
+					DateModified: fi.ModTime(),
+				}
+
 				l := &DirNode{info: d}
 				dirs[i].AddLeaf(l)
 				s.AddDirectory(d)
 				dirs = append(dirs, l)
 			} else {
-				f := &FileItem{name: fp}
+				f := &FileItem{
+					Name:         dirEntry.Name(),
+					Extension:    strings.Trim(filepath.Ext(dirEntry.Name()), "."),
+					Path:         fp,
+					DateModified: fi.ModTime(),
+					Size:         fi.Size(),
+				}
 				dirs[i].AddFile(f)
 				s.AddFile(f)
 			}
@@ -92,14 +130,10 @@ func read(p string) *Scan {
 }
 
 func printDirNode(c *DirNode, p *DirNode) {
-	if p != nil {
-		fmt.Printf("parent dir: '%v'\n", p.info.name)
-	}
-
-	fmt.Printf("current dir: '%v'\n", c.info.name)
+	fmt.Printf("current dir: '%v'\n", c.info.Name)
 	fmt.Printf("files:\n")
 	for _, f := range c.files {
-		fmt.Printf("	'%v'\n", f.name)
+		fmt.Printf("	'%v', hash: %v\n", f.Name, f.Hash)
 	}
 	for _, l := range c.leafs {
 		printDirNode(l, c)
@@ -110,15 +144,47 @@ func printScan(s *Scan) {
 	fmt.Printf("total files: %v\n", len(s.files))
 	fmt.Printf("total directories: %v\n", len(s.directories))
 
-	fmt.Printf("root dir: '%v'\n", s.root.info.name)
 	printDirNode(s.root, nil)
 }
 
-func scan(ccmd *cobra.Command, args []string) {
-	sp := viper.GetString("scan_path")
-	fmt.Printf("hello there nostalgia config: %v, tags: %v\n", sp, tags)
+func hashFiles(s *Scan) *Scan {
+	for _, f := range s.files {
+		f.Hash, _ = hash.Calculate(f.Path)
+	}
 
+	return s
+}
+
+func scan(ccmd *cobra.Command, args []string) {
+	start := time.Now()
+
+	sp := viper.GetString("scan_path")
+	fmt.Printf("config: %v, tags: %v\n", sp, strings.Split(tags, ","))
+
+	fmt.Printf("scan process started\n")
+
+	// 	- read-directories
+	// - file-structure (directories, files)
+	// - hash
+	// - update file size
+	// - check-existing (exists, existing-id)
+	// - persist
+	// - copy-files
+
+	// read
+	fmt.Printf("\nreading directories...")
 	s := read(sp)
+	fmt.Printf("OK\n")
+	fmt.Printf("directories: %v, files: %v\n", len(s.directories), len(s.files))
+
+	// hash
+	fmt.Printf("\nhashing files...")
+	s = hashFiles(s)
+	fmt.Printf("OK\n")
 
 	printScan(s)
+
+	elapsed := time.Since(start)
+	fmt.Printf("scan process finished: %v\n", elapsed)
+
 }
