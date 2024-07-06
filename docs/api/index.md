@@ -19,7 +19,7 @@ response example
 
 ## search
 
-GET /v1/search?contains=a&type=[image|doc|sheet|audio|video|zip|any]&only_directories=false&after=1000-01-01&before=9999-12-31&page=1&per_page=50
+GET /v1/search?contains=[keyword]&type=[image|doc|sheet|audio|video|zip|any]&only_directories=false&after=1000-01-01&before=9999-12-31&page=1&per_page=50
 > search for a resource, query, type, date after & before and paging
 
 Responses: 200, 404
@@ -56,7 +56,7 @@ after / before
 
 date format: YYYY-MM-DD
 
-> by default 1000-01-01 9999-12-31
+> by default 1000-01-01 / 9999-12-31
 
 ### pagination
 
