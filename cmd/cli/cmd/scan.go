@@ -214,20 +214,26 @@ func scan(ccmd *cobra.Command, args []string) {
 	// - copy-files
 
 	// read
+	partial := time.Now()
 	fmt.Printf("\nreading directories...")
 	s := read(sp)
-	fmt.Printf("OK\n")
+	elapsedpartial := time.Since(partial)
+	fmt.Printf("OK (%v)\n", elapsedpartial)
 	fmt.Printf("directories: %v, files: %v\n", len(s.directories), len(s.files))
 
 	// hash
+	partial = time.Now()
 	fmt.Printf("\nhashing files...")
 	s = hashFiles(s)
-	fmt.Printf("OK\n")
+	elapsedpartial = time.Since(partial)
+	fmt.Printf("OK (%v)\n", elapsedpartial)
 
 	// file size
+	partial = time.Now()
 	fmt.Printf("\nupdating file size...")
-	s = size(s)
-	fmt.Printf("OK\n")
+	_ = size(s)
+	elapsedpartial = time.Since(partial)
+	fmt.Printf("OK (%v)\n", elapsedpartial)
 
 	printScan(s)
 
