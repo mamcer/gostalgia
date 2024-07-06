@@ -210,7 +210,7 @@ func scan(ccmd *cobra.Command, args []string) {
 	start := time.Now()
 
 	sp := viper.GetString("scan_path")
-	fmt.Printf("config: %v, tags: %v\n", sp, strings.Split(tags, ","))
+	fmt.Printf("\nscan_path: %v\ntags: %v\ntype: %v\nname: %v\n\n", sp, strings.Join(strings.Split(tags, ","), ","), stype, name)
 
 	fmt.Printf("scan process started\n")
 
@@ -245,6 +245,16 @@ func scan(ccmd *cobra.Command, args []string) {
 	fmt.Printf("OK (%v)\n", elapsedpartial)
 
 	//printScan(s)
+
+	// check existing
+	partial = time.Now()
+	fmt.Printf("\nchecking existing files...")
+	//_ = size(s)
+	elapsedpartial = time.Since(partial)
+	fmt.Printf("OK (%v)\n", elapsedpartial)
+
+	elapsed := time.Since(start)
+	fmt.Printf("scan process finished: %v\n", elapsed)
 
 	fmt.Println("press enter key to continue")
 	fmt.Scanln()

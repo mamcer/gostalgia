@@ -35,7 +35,7 @@ example:
 
 example
 
-    scan --tag "tag01, tag 02, tag03" --type "cd|iso|year|music|picture|video" --name "2024-07-06_fotos"
+    scan --tags="tag01,tag 02,tag03" --type="cd|iso|year|music|picture|video" --name="2024-07-06_fotos"
 
     config.json
     	db connection
