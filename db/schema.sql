@@ -122,7 +122,7 @@ INSERT INTO `nostalgia`.`ndirectory`
 VALUES
 (
 "cd",
-"/cd",
+"cd",
 now(),
 0,
 0,
@@ -140,7 +140,7 @@ INSERT INTO `nostalgia`.`ndirectory`
 VALUES
 (
 "iso",
-"/iso",
+"iso",
 now(),
 0,
 0,
@@ -158,7 +158,7 @@ INSERT INTO `nostalgia`.`ndirectory`
 VALUES
 (
 "year",
-"/year",
+"year",
 now(),
 0,
 0,
@@ -176,7 +176,7 @@ INSERT INTO `nostalgia`.`ndirectory`
 VALUES
 (
 "music",
-"/music",
+"music",
 now(),
 0,
 0,
@@ -194,7 +194,7 @@ INSERT INTO `nostalgia`.`ndirectory`
 VALUES
 (
 "picture",
-"/picture",
+"picture",
 now(),
 0,
 0,
@@ -212,7 +212,7 @@ INSERT INTO `nostalgia`.`ndirectory`
 VALUES
 (
 "video",
-"/video",
+"video",
 now(),
 0,
 0,

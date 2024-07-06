@@ -227,7 +227,7 @@ func checkExisting(s *Scan) *Scan {
 	return s
 }
 
-func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB) {
+func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB, rp string) {
 	// ndirectory insert
 	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `date_modified`, `size`, `file_count`, `directory_count`, `parent_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
@@ -250,7 +250,8 @@ func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB) {
 	defer stmtFile.Close()
 
 	if dn.info.ID == 0 {
-		res, err := stmtDirectory.Exec(dn.info.Name, dn.info.Path, dn.info.DateModified, dn.info.Size, len(dn.files), len(dn.leafs), pid)
+		nd := strings.Replace(dn.info.Path, rp, "", 1)
+		res, err := stmtDirectory.Exec(dn.info.Name, nd, dn.info.DateModified, dn.info.Size, len(dn.files), len(dn.leafs), pid)
 		if err != nil {
 			fmt.Printf("error inserting ndirectory: %v\n", dn)
 		}
@@ -262,7 +263,7 @@ func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB) {
 
 	for _, f := range dn.files {
 		if !f.FileExists {
-			res, err := stmtFile.Exec(f.Name, f.Extension, f.Path, f.DateModified, f.Size, f.Hash)
+			res, err := stmtFile.Exec(f.Name, f.Extension, strings.Replace(f.Path, rp, "", 1), f.DateModified, f.Size, f.Hash)
 			if err != nil {
 				fmt.Printf("error inserting nfile: %v\n", f)
 			}
@@ -279,7 +280,7 @@ func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB) {
 	}
 
 	for _, d := range dn.leafs {
-		persistDirNode(d, dn.info.ID, sid, db)
+		persistDirNode(d, dn.info.ID, sid, db, rp)
 	}
 
 }
@@ -305,7 +306,7 @@ func persist(s *Scan) *Scan {
 	}
 	s.ID, _ = res.LastInsertId()
 
-	persistDirNode(s.root, s.root.info.ID, s.ID, db)
+	persistDirNode(s.root, s.root.info.ID, s.ID, db, s.root.info.Path+"/")
 
 	// nscan update
 	stmtUpdateScan, err := db.Prepare("UPDATE `nscan` SET `status` = ? WHERE id = ?")
@@ -374,8 +375,8 @@ func scan(ccmd *cobra.Command, args []string) {
 	s.Duration = elapsed.Milliseconds()
 	fmt.Printf("\nscan process finished: %v\n", elapsed)
 
-	fmt.Println("\npress enter key to continue")
-	fmt.Scanln()
+	// fmt.Println("\npress enter key to continue")
+	// fmt.Scanln()
 
 	// persist changes
 	partial = time.Now()
