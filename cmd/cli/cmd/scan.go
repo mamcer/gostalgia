@@ -37,8 +37,6 @@ type Scan struct {
 	ID                int64      // scan id
 	DateCreated       time.Time  // scan creation date
 	Duration          int64      // scan duration (in milliseconds)
-	FileCount         int64      // file scan count
-	DirectoryCount    int64      // directory scan count
 	FileRepeatedCount int64      // file repeated scan count
 	Status            ScanStatus // scan status = inprogress, done, error
 
@@ -143,7 +141,7 @@ func read(p string) *Scan {
 }
 
 func printDirNode(c *DirNode, p *DirNode) {
-	fmt.Printf("current dir: '%v', date: %v, size: %v\n", c.info.Name, c.info.DateModified, sizeString(c.info.Size))
+	fmt.Printf("current dir: '%v', date: %v, size: %v, parent: %v\n", c.info.Name, c.info.DateModified, sizeString(c.info.Size), p.info.Name)
 	fmt.Printf("files:\n")
 	for _, f := range c.files {
 		fmt.Printf("	'%v', date: %v, hash: %v, size: %v\n", f.Name, f.DateModified, f.Hash, sizeString(f.Size))
@@ -297,7 +295,7 @@ func persist(s *Scan) *Scan {
 	}
 	defer stmtScan.Close()
 
-	res, err := stmtScan.Exec(s.DateCreated, s.Duration, s.FileCount, s.DirectoryCount, s.FileRepeatedCount, s.Status, s.root.info.ID)
+	res, err := stmtScan.Exec(s.DateCreated, s.Duration, len(s.files), len(s.directories), s.FileRepeatedCount, s.Status, s.root.info.ID)
 	if err != nil {
 		fmt.Printf("error inserting nscan: %v\n", err)
 	}
@@ -354,7 +352,7 @@ func scan(ccmd *cobra.Command, args []string) {
 	_ = checkExisting(s)
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
-	fmt.Printf("file repeated count: %v\n", s.FileRepeatedCount)
+	fmt.Printf("file repeated count: %v (%.0f%%)\n", s.FileRepeatedCount, float64(s.FileRepeatedCount*int64(100)/int64(len(s.files))))
 
 	elapsed := time.Since(start)
 	s.Duration = elapsed.Milliseconds()
@@ -367,6 +365,6 @@ func scan(ccmd *cobra.Command, args []string) {
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
 
-	fmt.Println("press enter key to continue")
-	fmt.Scanln()
+	// fmt.Println("press enter key to continue")
+	// fmt.Scanln()
 }
