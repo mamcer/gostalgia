@@ -12,7 +12,6 @@ var (
 
 	tags  string
 	stype string
-	name  string
 
 	rootCmd = &cobra.Command{
 		Use:           "nostalgia",
@@ -32,7 +31,6 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&tags, "tags", "", "Tags")
 	rootCmd.PersistentFlags().StringVar(&stype, "type", "", "Type")
-	rootCmd.PersistentFlags().StringVar(&name, "name", "", "Name")
 
 	viper.SetDefault("scan", "scan")
 

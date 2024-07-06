@@ -53,6 +53,7 @@ type FileItem struct {
 	DateModified time.Time // file date modified
 	Size         int64     // file size (in bytes)
 	Hash         string    // file hash
+	FileExists   bool      // file exists
 }
 
 type DirItem struct {
@@ -218,6 +219,7 @@ func checkExisting(s *Scan) *Scan {
 		db.QueryRow("SELECT `id` FROM `nfile` WHERE `hash` = ?", f.Hash).Scan(&id)
 		if id != 0 {
 			f.ID = id
+			f.FileExists = true
 			s.FileRepeatedCount += 1
 		}
 	}
@@ -259,13 +261,15 @@ func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB) {
 	}
 
 	for _, f := range dn.files {
-		res, err := stmtFile.Exec(f.Name, f.Extension, f.Path, f.DateModified, f.Size, f.Hash)
-		if err != nil {
-			fmt.Printf("error inserting nfile: %v\n", f)
-		}
-		f.ID, err = res.LastInsertId()
-		if err != nil {
-			fmt.Printf("error defining nfile last insert id: %v\n", f)
+		if !f.FileExists {
+			res, err := stmtFile.Exec(f.Name, f.Extension, f.Path, f.DateModified, f.Size, f.Hash)
+			if err != nil {
+				fmt.Printf("error inserting nfile: %v\n", f)
+			}
+			f.ID, err = res.LastInsertId()
+			if err != nil {
+				fmt.Printf("error defining nfile last insert id: %v\n", f)
+			}
 		}
 
 		_, err = stmtFileDirectory.Exec(f.ID, dn.info.ID, sid, f.Name)
@@ -303,6 +307,18 @@ func persist(s *Scan) *Scan {
 
 	persistDirNode(s.root, s.root.info.ID, s.ID, db)
 
+	// nscan update
+	stmtUpdateScan, err := db.Prepare("UPDATE `nscan` SET `status` = ? WHERE id = ?")
+	if err != nil {
+		fmt.Printf("error preparing ndirectory update: %v\n", err)
+	}
+	defer stmtUpdateScan.Close()
+
+	_, err = stmtUpdateScan.Exec(Done, s.ID)
+	if err != nil {
+		fmt.Printf("error updating nscan: %v\n", s)
+	}
+
 	return s
 }
 
@@ -310,7 +326,7 @@ func scan(ccmd *cobra.Command, args []string) {
 	start := time.Now()
 
 	sp := viper.GetString("scan_path")
-	fmt.Printf("\nscan_path: %v\ntags: %v\ntype: %v\nname: %v\n\n", sp, strings.Join(strings.Split(tags, ","), ","), stype, name)
+	fmt.Printf("\nscan_path: %v\ntags: %v\ntype: %v\n\n", sp, strings.Join(strings.Split(tags, ","), ","), stype)
 
 	fmt.Printf("scan process started\n")
 
@@ -356,7 +372,10 @@ func scan(ccmd *cobra.Command, args []string) {
 
 	elapsed := time.Since(start)
 	s.Duration = elapsed.Milliseconds()
-	fmt.Printf("scan process finished: %v\n", elapsed)
+	fmt.Printf("\nscan process finished: %v\n", elapsed)
+
+	fmt.Println("\npress enter key to continue")
+	fmt.Scanln()
 
 	// persist changes
 	partial = time.Now()

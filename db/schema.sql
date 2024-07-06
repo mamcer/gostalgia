@@ -56,14 +56,6 @@ CREATE TABLE `nfile_ndirectory` (
     PRIMARY KEY (`id`)
 ) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
 
--- nerror
-CREATE TABLE `nerror` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `description` TEXT NOT NULL,
-    `nscan_id` BIGINT UNSIGNED NOT NULL,
-    PRIMARY KEY (`id`)
-) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
-
 -- fk ndirectory
 ALTER TABLE `ndirectory` 
 ADD CONSTRAINT `fk_ndirectory_ndirectory` 
@@ -92,12 +84,6 @@ ADD CONSTRAINT `fk_nfile_ndirectory_nscan`
 FOREIGN KEY (`nscan_id`) 
 REFERENCES `nscan`(`id`);
 
--- fk nerror
-ALTER TABLE `nerror` 
-ADD CONSTRAINT `fk_nerror_nscan` 
-FOREIGN KEY (`nscan_id`) 
-REFERENCES `nscan`(`id`);
-
 -- insert default values
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -106,7 +92,6 @@ ALTER TABLE `nostalgia`.`nfile` AUTO_INCREMENT = 0;
 ALTER TABLE `nostalgia`.`ndirectory` AUTO_INCREMENT = 0;
 ALTER TABLE `nostalgia`.`nscan` AUTO_INCREMENT = 0;
 ALTER TABLE `nostalgia`.`nfile_ndirectory` AUTO_INCREMENT = 0;
-ALTER TABLE `nostalgia`.`nerror` AUTO_INCREMENT = 0;
 
 INSERT INTO `nostalgia`.`ndirectory`
 (`name`,
@@ -125,5 +110,113 @@ now(),
 0,
 0,
 0);
+
+INSERT INTO `nostalgia`.`ndirectory`
+(`name`,
+`path`,
+`date_modified`,
+`size`,
+`file_count`,
+`directory_count`,
+`parent_id`)
+VALUES
+(
+"cd",
+"/cd",
+now(),
+0,
+0,
+0,
+1);
+
+INSERT INTO `nostalgia`.`ndirectory`
+(`name`,
+`path`,
+`date_modified`,
+`size`,
+`file_count`,
+`directory_count`,
+`parent_id`)
+VALUES
+(
+"iso",
+"/iso",
+now(),
+0,
+0,
+0,
+1);
+
+INSERT INTO `nostalgia`.`ndirectory`
+(`name`,
+`path`,
+`date_modified`,
+`size`,
+`file_count`,
+`directory_count`,
+`parent_id`)
+VALUES
+(
+"year",
+"/year",
+now(),
+0,
+0,
+0,
+1);
+
+INSERT INTO `nostalgia`.`ndirectory`
+(`name`,
+`path`,
+`date_modified`,
+`size`,
+`file_count`,
+`directory_count`,
+`parent_id`)
+VALUES
+(
+"music",
+"/music",
+now(),
+0,
+0,
+0,
+1);
+
+INSERT INTO `nostalgia`.`ndirectory`
+(`name`,
+`path`,
+`date_modified`,
+`size`,
+`file_count`,
+`directory_count`,
+`parent_id`)
+VALUES
+(
+"picture",
+"/picture",
+now(),
+0,
+0,
+0,
+1);
+
+INSERT INTO `nostalgia`.`ndirectory`
+(`name`,
+`path`,
+`date_modified`,
+`size`,
+`file_count`,
+`directory_count`,
+`parent_id`)
+VALUES
+(
+"video",
+"/video",
+now(),
+0,
+0,
+0,
+1);
 
 SET FOREIGN_KEY_CHECKS=1;

@@ -6,7 +6,6 @@ nfile
 ndirectory  
 nscan  
 nfile_ndirectory  
-nerror  
 
 ## database
 

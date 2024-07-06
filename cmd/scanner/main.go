@@ -111,14 +111,6 @@ func scan(root string, sname string, db *sql.DB) int {
 		return 1
 	}
 
-	// nerror insert
-	stmtError, err := db.Prepare("INSERT INTO `nerror` (`description`, `nscan_id`) VALUES (?, ?)")
-	defer stmtError.Close()
-	if err != nil {
-		fmt.Printf("error preparing nerror insert: %v\n", err)
-		return 1
-	}
-
 	// insert scan
 	ns := entities.Nscan{DateCreated: time.Now(), Status: entities.InProgress, Name: root, RetryCount: 0}
 	res, err := stmtScan.Exec(ns.DateCreated, ns.Status, ns.Name, ns.RetryCount)

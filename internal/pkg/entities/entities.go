@@ -50,9 +50,3 @@ type Nfilendirectory struct {
 	NscanID      int64  // scan id
 	Name         string //file name
 }
-
-type Nerror struct {
-	ID          int64  // error id
-	Description string // error description
-	NscanID     int64  // scan id
-}
