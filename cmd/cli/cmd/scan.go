@@ -23,14 +23,22 @@ var (
 	}
 )
 
+type ScanStatus int64
+
+const (
+	InProgress ScanStatus = 0
+	Done       ScanStatus = 1
+	Error      ScanStatus = 2
+)
+
 type Scan struct {
-	ID                int64     // scan id
-	DateCreated       time.Time // scan creation date
-	Duration          int64     // scan duration (in milliseconds)
-	FileCount         int64     // file scan count
-	DirectoryCount    int64     // directory scan count
-	FileRepeatedCount int64     // file repeated scan count
-	Status            int64     // scan status = done, inprogress, error
+	ID                int64      // scan id
+	DateCreated       time.Time  // scan creation date
+	Duration          int64      // scan duration (in milliseconds)
+	FileCount         int64      // file scan count
+	DirectoryCount    int64      // directory scan count
+	FileRepeatedCount int64      // file repeated scan count
+	Status            ScanStatus // scan status = inprogress, done, error
 
 	files       []*FileItem
 	directories []*DirItem
@@ -84,8 +92,9 @@ func read(p string) *Scan {
 		Name: "root",
 		Path: p,
 	}
+
 	r := &DirNode{info: d}
-	s := &Scan{root: r}
+	s := &Scan{root: r, DateCreated: time.Now(), Status: InProgress}
 	s.AddDirectory(d)
 
 	var dirs []*DirNode = []*DirNode{r}
@@ -235,10 +244,7 @@ func scan(ccmd *cobra.Command, args []string) {
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
 
-	printScan(s)
-
-	elapsed := time.Since(start)
-	fmt.Printf("scan process finished: %v\n", elapsed)
+	//printScan(s)
 
 	fmt.Println("press enter key to continue")
 	fmt.Scanln()
