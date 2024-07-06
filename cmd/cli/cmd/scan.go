@@ -58,13 +58,11 @@ type FileItem struct {
 }
 
 type DirItem struct {
-	ID             int64     // directory id
-	Name           string    // directory name
-	Path           string    // directory path
-	DateModified   time.Time // date modified
-	Size           int64     // directory size (in bytes)
-	Exists         bool
-	ExistingFileID int64
+	ID           int64     // directory id
+	Name         string    // directory name
+	Path         string    // directory path
+	DateModified time.Time // date modified
+	Size         int64     // directory size (in bytes)
 }
 
 type DirNode struct {
@@ -91,8 +89,9 @@ func (s *Scan) AddDirectory(d *DirItem) {
 
 func read(p string) *Scan {
 	d := &DirItem{
-		Name: "root",
-		Path: p,
+		Name:         "root",
+		Path:         p,
+		DateModified: time.Now(),
 	}
 
 	r := &DirNode{info: d}
@@ -144,10 +143,10 @@ func read(p string) *Scan {
 }
 
 func printDirNode(c *DirNode, p *DirNode) {
-	fmt.Printf("current dir: '%v' size: %v\n", c.info.Name, sizeString(c.info.Size))
+	fmt.Printf("current dir: '%v', date: %v, size: %v\n", c.info.Name, c.info.DateModified, sizeString(c.info.Size))
 	fmt.Printf("files:\n")
 	for _, f := range c.files {
-		fmt.Printf("	'%v', hash: %v, size: %v\n", f.Name, f.Hash, sizeString(f.Size))
+		fmt.Printf("	'%v', date: %v, hash: %v, size: %v\n", f.Name, f.DateModified, f.Hash, sizeString(f.Size))
 	}
 	for _, l := range c.leafs {
 		printDirNode(l, c)
@@ -228,6 +227,87 @@ func checkExisting(s *Scan) *Scan {
 	return s
 }
 
+func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB) {
+	// ndirectory insert
+	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `date_modified`, `size`, `file_count`, `directory_count`, `parent_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	if err != nil {
+		fmt.Printf("error preparing ndirectory insert: %v\n", err)
+	}
+	defer stmtDirectory.Close()
+
+	// nfile_ndirectory insert
+	stmtFileDirectory, err := db.Prepare("INSERT INTO `nfile_ndirectory` (`nfile_id`, `ndirectory_id`, `nscan_id`, `name`) VALUES (?, ?, ?, ?)")
+	if err != nil {
+		fmt.Printf("error preparing nfile_ndirectory insert: %v\n", err)
+	}
+	defer stmtFileDirectory.Close()
+
+	// nfile insert
+	stmtFile, err := db.Prepare("INSERT INTO `nfile` (`name`, `extension`, `path`, `date_modified`, `size`, `hash`) VALUES (?, ?, ?, ?, ?, ?)")
+	if err != nil {
+		fmt.Printf("error preparing nfile insert: %v\n", err)
+	}
+	defer stmtFile.Close()
+
+	if dn.info.ID == 0 {
+		res, err := stmtDirectory.Exec(dn.info.Name, dn.info.Path, dn.info.DateModified, dn.info.Size, len(dn.files), len(dn.leafs), pid)
+		if err != nil {
+			fmt.Printf("error inserting ndirectory: %v\n", dn)
+		}
+		dn.info.ID, err = res.LastInsertId()
+		if err != nil {
+			fmt.Printf("error defining ndirectory last insert id: %v\n", dn)
+		}
+	}
+
+	for _, f := range dn.files {
+		res, err := stmtFile.Exec(f.Name, f.Extension, f.Path, f.DateModified, f.Size, f.Hash)
+		if err != nil {
+			fmt.Printf("error inserting nfile: %v\n", f)
+		}
+		f.ID, err = res.LastInsertId()
+		if err != nil {
+			fmt.Printf("error defining nfile last insert id: %v\n", f)
+		}
+
+		_, err = stmtFileDirectory.Exec(f.ID, dn.info.ID, sid, f.Name)
+		if err != nil {
+			fmt.Printf("error inserting nfile_ndirectory: %v, %v\n", f, dn)
+		}
+	}
+
+	for _, d := range dn.leafs {
+		persistDirNode(d, dn.info.ID, sid, db)
+	}
+
+}
+
+func persist(s *Scan) *Scan {
+	db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/nostalgia")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer db.Close()
+
+	s.root.info.ID = 1
+
+	stmtScan, err := db.Prepare("INSERT INTO `nscan` (`date_created`, `duration`, `file_count`, `directory_count`, `file_repeated_count`, `status`, `root_directory_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	if err != nil {
+		fmt.Printf("error preparing nscan insert: %v\n", err)
+	}
+	defer stmtScan.Close()
+
+	res, err := stmtScan.Exec(s.DateCreated, s.Duration, s.FileCount, s.DirectoryCount, s.FileRepeatedCount, s.Status, s.root.info.ID)
+	if err != nil {
+		fmt.Printf("error inserting nscan: %v\n", err)
+	}
+	s.ID, _ = res.LastInsertId()
+
+	persistDirNode(s.root, s.root.info.ID, s.ID, db)
+
+	return s
+}
+
 func scan(ccmd *cobra.Command, args []string) {
 	start := time.Now()
 
@@ -266,7 +346,7 @@ func scan(ccmd *cobra.Command, args []string) {
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
 
-	printScan(s)
+	//printScan(s)
 
 	// check existing
 	partial = time.Now()
@@ -277,7 +357,15 @@ func scan(ccmd *cobra.Command, args []string) {
 	fmt.Printf("file repeated count: %v\n", s.FileRepeatedCount)
 
 	elapsed := time.Since(start)
+	s.Duration = elapsed.Milliseconds()
 	fmt.Printf("scan process finished: %v\n", elapsed)
+
+	// persist changes
+	partial = time.Now()
+	fmt.Printf("\npersist changes...")
+	_ = persist(s)
+	elapsedpartial = time.Since(partial)
+	fmt.Printf("OK (%v)\n", elapsedpartial)
 
 	fmt.Println("press enter key to continue")
 	fmt.Scanln()
