@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/mamcer/nostalgia/internal/pkg/hash"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -206,6 +208,26 @@ func size(s *Scan) *Scan {
 	return s
 }
 
+func checkExisting(s *Scan) *Scan {
+	db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/nostalgia")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer db.Close()
+
+	var id int64
+	for _, f := range s.files {
+		id = 0
+		db.QueryRow("SELECT `id` FROM `nfile` WHERE `hash` = ?", f.Hash).Scan(&id)
+		if id != 0 {
+			f.ID = id
+			s.FileRepeatedCount += 1
+		}
+	}
+
+	return s
+}
+
 func scan(ccmd *cobra.Command, args []string) {
 	start := time.Now()
 
@@ -244,14 +266,15 @@ func scan(ccmd *cobra.Command, args []string) {
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
 
-	//printScan(s)
+	printScan(s)
 
 	// check existing
 	partial = time.Now()
 	fmt.Printf("\nchecking existing files...")
-	//_ = size(s)
+	_ = checkExisting(s)
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
+	fmt.Printf("file repeated count: %v\n", s.FileRepeatedCount)
 
 	elapsed := time.Since(start)
 	fmt.Printf("scan process finished: %v\n", elapsed)
