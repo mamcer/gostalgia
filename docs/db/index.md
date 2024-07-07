@@ -49,6 +49,9 @@
     drop table `ndirectory`;
     drop table `nscan`;
     drop table `nfile_ndirectory`;
+    drop table `ntag`;
+    drop table `ntag_nfile`;
+    drop table `ntag_ndirectory`;
 
     set foreign_key_checks=1;
 

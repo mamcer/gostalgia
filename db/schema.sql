@@ -27,6 +27,7 @@ CREATE TABLE `ndirectory` (
     `file_count` INT UNSIGNED NOT NULL,
     `directory_count` INT UNSIGNED NOT NULL,
     `parent_id` BIGINT UNSIGNED NOT NULL,
+    `is_source` BIT NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`)
 ) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
 
@@ -53,6 +54,31 @@ CREATE TABLE `nfile_ndirectory` (
     `ndirectory_id` BIGINT UNSIGNED NOT NULL,
     `nscan_id` BIGINT UNSIGNED NOT NULL,
     `name` VARCHAR(255) NOT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
+
+-- ntag
+CREATE TABLE `ntag` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(255) NOT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
+
+CREATE INDEX `idx_ntag_name` ON `ntag`(`name`);
+
+-- ntag_nfile
+CREATE TABLE `ntag_nfile` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `ntag_id` BIGINT UNSIGNED NOT NULL,
+    `nfile_id` BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
+
+-- ntag_ndirectory
+CREATE TABLE `ntag_ndirectory` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `ntag_id` BIGINT UNSIGNED NOT NULL,
+    `ndirectory_id` BIGINT UNSIGNED NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE=INNODB AUTO_INCREMENT=1540 DEFAULT CHARSET=utf8;
 
@@ -84,6 +110,28 @@ ADD CONSTRAINT `fk_nfile_ndirectory_nscan`
 FOREIGN KEY (`nscan_id`) 
 REFERENCES `nscan`(`id`);
 
+-- fk ntag_nfile
+ALTER TABLE `ntag_nfile` 
+ADD CONSTRAINT `fk_ntag_nfile_ntag` 
+FOREIGN KEY (`ntag_id`) 
+REFERENCES `ntag`(`id`);
+
+ALTER TABLE `ntag_nfile` 
+ADD CONSTRAINT `fk_ntag_nfile_nfile` 
+FOREIGN KEY (`nfile_id`) 
+REFERENCES `nfile`(`id`);
+
+-- fk ntag_ndirectory
+ALTER TABLE `ntag_ndirectory` 
+ADD CONSTRAINT `fk_ntag_ndirectory_ntag` 
+FOREIGN KEY (`ntag_id`) 
+REFERENCES `ntag`(`id`);
+
+ALTER TABLE `ntag_ndirectory` 
+ADD CONSTRAINT `fk_ntag_ndirectory_ndirectory` 
+FOREIGN KEY (`ndirectory_id`) 
+REFERENCES `ndirectory`(`id`);
+
 -- insert default values
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -100,7 +148,8 @@ INSERT INTO `nostalgia`.`ndirectory`
 `size`,
 `file_count`,
 `directory_count`,
-`parent_id`)
+`parent_id`,
+`is_source`)
 VALUES
 (
 "/",
@@ -109,7 +158,8 @@ now(),
 0,
 0,
 0,
-0);
+0,
+1);
 
 INSERT INTO `nostalgia`.`ndirectory`
 (`name`,
@@ -118,7 +168,8 @@ INSERT INTO `nostalgia`.`ndirectory`
 `size`,
 `file_count`,
 `directory_count`,
-`parent_id`)
+`parent_id`,
+`is_source`)
 VALUES
 (
 "cd",
@@ -127,6 +178,7 @@ now(),
 0,
 0,
 0,
+1,
 1);
 
 INSERT INTO `nostalgia`.`ndirectory`
@@ -136,7 +188,8 @@ INSERT INTO `nostalgia`.`ndirectory`
 `size`,
 `file_count`,
 `directory_count`,
-`parent_id`)
+`parent_id`,
+`is_source`)
 VALUES
 (
 "iso",
@@ -145,6 +198,7 @@ now(),
 0,
 0,
 0,
+1,
 1);
 
 INSERT INTO `nostalgia`.`ndirectory`
@@ -154,7 +208,8 @@ INSERT INTO `nostalgia`.`ndirectory`
 `size`,
 `file_count`,
 `directory_count`,
-`parent_id`)
+`parent_id`,
+`is_source`)
 VALUES
 (
 "year",
@@ -163,6 +218,7 @@ now(),
 0,
 0,
 0,
+1,
 1);
 
 INSERT INTO `nostalgia`.`ndirectory`
@@ -172,7 +228,8 @@ INSERT INTO `nostalgia`.`ndirectory`
 `size`,
 `file_count`,
 `directory_count`,
-`parent_id`)
+`parent_id`,
+`is_source`)
 VALUES
 (
 "music",
@@ -181,6 +238,7 @@ now(),
 0,
 0,
 0,
+1,
 1);
 
 INSERT INTO `nostalgia`.`ndirectory`
@@ -190,7 +248,8 @@ INSERT INTO `nostalgia`.`ndirectory`
 `size`,
 `file_count`,
 `directory_count`,
-`parent_id`)
+`parent_id`,
+`is_source`)
 VALUES
 (
 "picture",
@@ -199,6 +258,7 @@ now(),
 0,
 0,
 0,
+1,
 1);
 
 INSERT INTO `nostalgia`.`ndirectory`
@@ -208,7 +268,8 @@ INSERT INTO `nostalgia`.`ndirectory`
 `size`,
 `file_count`,
 `directory_count`,
-`parent_id`)
+`parent_id`,
+`is_source`)
 VALUES
 (
 "video",
@@ -217,6 +278,7 @@ now(),
 0,
 0,
 0,
+1,
 1);
 
 SET FOREIGN_KEY_CHECKS=1;
