@@ -35,7 +35,7 @@ example:
 
 example
 
-    scan --tags="tag01,tag 02,tag03" --type="cd|iso|year|music|picture|video"
+    scan --tags="tag01,tag 02,tag03" --source="cd|iso|year|music|picture|video"
 
     config.json
     	db connection

@@ -292,8 +292,6 @@ func persist(s *Scan) *Scan {
 	}
 	defer db.Close()
 
-	s.root.info.ID = 1
-
 	stmtScan, err := db.Prepare("INSERT INTO `nscan` (`date_created`, `duration`, `file_count`, `directory_count`, `file_repeated_count`, `status`, `root_directory_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		fmt.Printf("error preparing nscan insert: %v\n", err)
@@ -349,12 +347,21 @@ func scan(ccmd *cobra.Command, args []string) {
 	sd := getSourceDirectories()
 
 	sp := viper.GetString("scan_path")
-	fmt.Printf("\nscan_path: %v\ntags: %v\ntype: %v\n", sp, strings.Join(strings.Split(tags, ","), ","), stype)
+	fmt.Printf("\nscan_path: %v\ntags: %v\nsource: %v\n", sp, strings.Join(strings.Split(tags, ","), ","), source)
 	fmt.Println("source directories:")
+	var sourceID int64
 	for _, di := range sd {
 		fmt.Printf("id: %v, name: %s\n", di.ID, di.Name)
+		if source == di.Name {
+			sourceID = di.ID
+		}
 	}
 	fmt.Println("")
+
+	if sourceID == 0 {
+		fmt.Printf("invalid source directory: '%v'\n", source)
+		return
+	}
 
 	fmt.Printf("scan process started\n")
 
@@ -370,6 +377,7 @@ func scan(ccmd *cobra.Command, args []string) {
 	partial := time.Now()
 	fmt.Printf("\nreading directories...")
 	s := read(sp)
+	s.root.info.ID = sourceID
 	elapsedpartial := time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
 	fmt.Printf("directories: %v, files: %v\n", len(s.directories), len(s.files))
@@ -411,7 +419,4 @@ func scan(ccmd *cobra.Command, args []string) {
 	_ = persist(s)
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
-
-	// fmt.Println("press enter key to continue")
-	// fmt.Scanln()
 }

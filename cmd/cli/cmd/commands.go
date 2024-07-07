@@ -10,8 +10,8 @@ import (
 var (
 	cfgFile string
 
-	tags  string
-	stype string
+	tags   string
+	source string
 
 	rootCmd = &cobra.Command{
 		Use:           "nostalgia",
@@ -30,7 +30,7 @@ func init() {
 	viper.BindPFlag("config", rootCmd.PersistentFlags().Lookup("config"))
 
 	rootCmd.PersistentFlags().StringVar(&tags, "tags", "", "Tags")
-	rootCmd.PersistentFlags().StringVar(&stype, "type", "", "Type")
+	rootCmd.PersistentFlags().StringVar(&source, "source", "", "Source Directory")
 
 	viper.SetDefault("scan", "scan")
 
