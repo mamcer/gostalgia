@@ -323,11 +323,38 @@ func persist(s *Scan) *Scan {
 	return s
 }
 
+func getSourceDirectories() []DirItem {
+	db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/nostalgia")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`SELECT id, name FROM ndirectory WHERE is_source = 1`)
+	results := []DirItem{}
+	if err == nil {
+		for rows.Next() {
+			di := DirItem{}
+			rows.Scan(&di.ID, &di.Name)
+			results = append(results, di)
+		}
+	}
+
+	return results
+}
+
 func scan(ccmd *cobra.Command, args []string) {
 	start := time.Now()
 
+	sd := getSourceDirectories()
+
 	sp := viper.GetString("scan_path")
-	fmt.Printf("\nscan_path: %v\ntags: %v\ntype: %v\n\n", sp, strings.Join(strings.Split(tags, ","), ","), stype)
+	fmt.Printf("\nscan_path: %v\ntags: %v\ntype: %v\n", sp, strings.Join(strings.Split(tags, ","), ","), stype)
+	fmt.Println("source directories:")
+	for _, di := range sd {
+		fmt.Printf("id: %v, name: %s\n", di.ID, di.Name)
+	}
+	fmt.Println("")
 
 	fmt.Printf("scan process started\n")
 
