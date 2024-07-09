@@ -3,6 +3,7 @@ package cmd
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -160,7 +161,8 @@ func printScan(s *Scan) {
 }
 
 func hashFiles(s *Scan) *Scan {
-	for _, f := range s.files {
+	for i, f := range s.files {
+		fmt.Printf("[%v/%v] hashing: '%v'\n", i+1, len(s.files), f.Name)
 		f.Hash, _ = hash.Calculate(f.Path)
 	}
 
@@ -350,12 +352,45 @@ func getSourceDirectories() []DirItem {
 	return results
 }
 
+func copyFiles(s *Scan, np string) *Scan {
+	for i, f := range s.files {
+		fmt.Printf("[%v/%v] copying file: '%v'\n", i, len(s.files), f.Name)
+		rp := strings.Replace(f.Path, s.root.info.Path, "", 1)
+		fp := path.Join(np, rp)
+		err := os.MkdirAll(fp, 0755)
+		if err != nil {
+			fmt.Printf("failed to create directory: '%v' - %v\n", fp, err)
+		} else {
+			i, err := os.Open(f.Path)
+			defer i.Close()
+			if err == nil {
+				o, err := os.Create(fp)
+				defer o.Close()
+				if err == nil {
+					_, err = io.Copy(o, i)
+					if err != nil {
+						fmt.Printf("failed to copy file: '%v' to '%v' - %v", f.Name, fp, err)
+					}
+				} else {
+					fmt.Printf("failed to create file to copy: %v - %v", fp, err)
+				}
+
+			} else {
+				fmt.Printf("failed to open file to copy: %v - %v", f.Path, err)
+			}
+		}
+	}
+
+	return s
+}
+
 func scan(ccmd *cobra.Command, args []string) {
 	start := time.Now()
 
 	sd := getSourceDirectories()
 
 	sp := viper.GetString("scan_path")
+	np := viper.GetString("nostalgia_path")
 	fmt.Printf("\nscan_path: %v\ntags: %v\nsource: %v\n", sp, strings.Join(strings.Split(tags, ","), ","), source)
 	fmt.Println("source directories:")
 	var sourceID int64
@@ -393,7 +428,7 @@ func scan(ccmd *cobra.Command, args []string) {
 
 	// hash
 	partial = time.Now()
-	fmt.Printf("\nhashing files...")
+	fmt.Printf("\nhashing files...\n")
 	s = hashFiles(s)
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
@@ -426,6 +461,13 @@ func scan(ccmd *cobra.Command, args []string) {
 	partial = time.Now()
 	fmt.Printf("persist changes...")
 	_ = persist(s)
+	elapsedpartial = time.Since(partial)
+	fmt.Printf("OK (%v)\n", elapsedpartial)
+
+	// copy files
+	partial = time.Now()
+	fmt.Printf("copy files...")
+	_ = copyFiles(s, np)
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
 }
