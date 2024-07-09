@@ -409,14 +409,6 @@ func scan(ccmd *cobra.Command, args []string) {
 
 	fmt.Printf("scan process started\n")
 
-	// 	- read-directories
-	// - file-structure (directories, files)
-	// - hash
-	// - update file size
-	// - check-existing (exists, existing-id)
-	// - persist
-	// - copy-files
-
 	// read
 	partial := time.Now()
 	fmt.Printf("\nreading directories...")
@@ -450,6 +442,7 @@ func scan(ccmd *cobra.Command, args []string) {
 	fmt.Printf("OK (%v)\n", elapsedpartial)
 	fmt.Printf("file repeated count: %v (%.0f%%)\n", s.FileRepeatedCount, float64(s.FileRepeatedCount*int64(100)/int64(len(s.files))))
 
+	// scan finished
 	elapsed := time.Since(start)
 	s.Duration = elapsed.Milliseconds()
 	fmt.Printf("\nscan process finished: %v\n", elapsed)
