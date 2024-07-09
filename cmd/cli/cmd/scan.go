@@ -362,11 +362,11 @@ func copyFiles(s *Scan, np string) *Scan {
 			fmt.Printf("failed to create directory: '%v' - %v\n", fp, err)
 		} else {
 			i, err := os.Open(f.Path)
-			defer i.Close()
 			if err == nil {
+				defer i.Close()
 				o, err := os.Create(fp)
-				defer o.Close()
 				if err == nil {
+					defer o.Close()
 					_, err = io.Copy(o, i)
 					if err != nil {
 						fmt.Printf("failed to copy file: '%v' to '%v' - %v", f.Name, fp, err)
