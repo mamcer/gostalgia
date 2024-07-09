@@ -263,13 +263,22 @@ func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB, rp string) {
 
 	for _, f := range dn.files {
 		if !f.FileExists {
-			res, err := stmtFile.Exec(f.Name, f.Extension, strings.Replace(f.Path, rp, "", 1), f.DateModified, f.Size, f.Hash)
-			if err != nil {
-				fmt.Printf("error inserting nfile: %v\n", f)
-			}
-			f.ID, err = res.LastInsertId()
-			if err != nil {
-				fmt.Printf("error defining nfile last insert id: %v\n", f)
+			// check if its not repeated in the same scan
+			var id int64 = 0
+			db.QueryRow("SELECT `id` FROM `nfile` WHERE `hash` = ?", f.Hash).Scan(&id)
+			if id != 0 {
+				f.ID = id
+				f.FileExists = true
+			} else {
+				// its repeated but from previous scans, already in the database
+				res, err := stmtFile.Exec(f.Name, f.Extension, strings.Replace(f.Path, rp, "", 1), f.DateModified, f.Size, f.Hash)
+				if err != nil {
+					fmt.Printf("error inserting nfile: %v\n", f)
+				}
+				f.ID, err = res.LastInsertId()
+				if err != nil {
+					fmt.Printf("error defining nfile last insert id: %v\n", f)
+				}
 			}
 		}
 
@@ -298,7 +307,7 @@ func persist(s *Scan) *Scan {
 	}
 	defer stmtScan.Close()
 
-	res, err := stmtScan.Exec(s.DateCreated, s.Duration, len(s.files), len(s.directories), s.FileRepeatedCount, s.Status, s.root.info.ID)
+	res, err := stmtScan.Exec(s.DateCreated, s.Duration, len(s.files), len(s.directories)-1, s.FileRepeatedCount, s.Status, s.root.info.ID)
 	if err != nil {
 		fmt.Printf("error inserting nscan: %v\n", err)
 	}
@@ -415,7 +424,7 @@ func scan(ccmd *cobra.Command, args []string) {
 
 	// persist changes
 	partial = time.Now()
-	fmt.Printf("\npersist changes...")
+	fmt.Printf("persist changes...")
 	_ = persist(s)
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)

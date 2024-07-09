@@ -5,7 +5,7 @@ CREATE TABLE `nfile` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(255) NOT NULL,
     `extension` VARCHAR(50) NOT NULL,
-    `path` VARCHAR(260) NOT NULL,
+    `path` VARCHAR(4096) NOT NULL,
     `date_modified` DATETIME NOT NULL,
     `size` BIGINT UNSIGNED NOT NULL,
     `hash` VARCHAR(40) NOT NULL,
@@ -21,7 +21,7 @@ CREATE INDEX `idx_nfile_hash` ON `nfile`(`hash`);
 CREATE TABLE `ndirectory` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(255) NOT NULL,
-    `path` VARCHAR(260) NOT NULL,
+    `path` VARCHAR(4096) NOT NULL,
     `date_modified` DATETIME NOT NULL,
     `size` BIGINT UNSIGNED NOT NULL,
     `file_count` INT UNSIGNED NOT NULL,
@@ -38,7 +38,7 @@ CREATE INDEX `idx_ndirectory_date_modified` ON `ndirectory`(`date_modified`);
 CREATE TABLE `nscan` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     `date_created` DATETIME NOT NULL,
-    `duration` INT UNSIGNED NULL,
+    `duration` INT UNSIGNED NULL,           -- milliseconds
     `file_count` INT UNSIGNED NULL,
     `directory_count` INT UNSIGNED NULL,
     `file_repeated_count` INT UNSIGNED NULL,

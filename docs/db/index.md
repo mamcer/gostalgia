@@ -5,38 +5,10 @@
     SET FOREIGN_KEY_CHECKS=0;
     
     TRUNCATE TABLE `nostalgia`.`nfile`;
-    TRUNCATE TABLE `nostalgia`.`ndirectory`;
+    DELETE FROM `nostalgia`.`ndirectory` where is_source = 0x00;
     TRUNCATE TABLE `nostalgia`.`nfile_ndirectory`;
     TRUNCATE TABLE `nostalgia`.`nscan`;
     
-    SET FOREIGN_KEY_CHECKS=1;
-
-## seed data
-
-    SET FOREIGN_KEY_CHECKS=0;
-
-    DELETE FROM `nostalgia`.`ndirectory`;
-
-    ALTER TABLE `nostalgia`.`ndirectory` AUTO_INCREMENT = 0;
-
-    INSERT INTO `nostalgia`.`ndirectory`
-    (`name`,
-    `path`,
-    `date_modified`,
-    `size`,
-    `file_count`,
-    `directory_count`,
-    `parent_id`)
-    VALUES
-    (
-    "$",
-    "/",
-    now(),
-    0,
-    0,
-    0,
-    0);
-
     SET FOREIGN_KEY_CHECKS=1;
 
 ## drop all
@@ -98,3 +70,21 @@ Top 10 repeated files
             from nfile_ndirectory as fd, nfile as f 
             where fd.nfile_id = f.id  
             group by id,name order by size_GB desc limit 10
+
+## remove last scan
+
+    SET FOREIGN_KEY_CHECKS=0;
+
+    select @scanid = 2
+
+    delete from nfile where id in (select nfile_id from nfile_ndirectory where nscan_id = @scanid)
+
+    delete from ndirectory where id in (select ndirectory_id from nfile_ndirectory where nscan_id = @scanid)
+
+    delete from nfile_ndirectory where nscan_id = @scanid
+
+    delete from nscan where id = @scanid
+
+    SET FOREIGN_KEY_CHECKS=1;
+
+    -- could leave zombie directories (directories that don't have files won't have an entry in nfile_ndirectory, no way to )
