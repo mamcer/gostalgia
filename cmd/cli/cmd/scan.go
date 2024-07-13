@@ -73,6 +73,11 @@ type DirNode struct {
 	leafs []*DirNode
 }
 
+type NTag struct {
+	ID   int64  // ntag id
+	Name string // ntag name
+}
+
 func (dn *DirNode) AddLeaf(l *DirNode) {
 	dn.leafs = append(dn.leafs, l)
 }
@@ -244,7 +249,7 @@ func checkExisting(s *Scan) *Scan {
 	return s
 }
 
-func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB, rp string) {
+func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB, rp string, tags []NTag) {
 	// ndirectory insert
 	stmtDirectory, err := db.Prepare("INSERT INTO `ndirectory` (`name`, `path`, `date_modified`, `size`, `file_count`, `directory_count`, `parent_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
@@ -266,6 +271,20 @@ func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB, rp string) {
 	}
 	defer stmtFile.Close()
 
+	// ntag ndirectory insert
+	stmtTagDirectory, err := db.Prepare("INSERT INTO `ntag_ndirectory` (`ntag_id`, `ndirectory_id`) VALUES (?, ?)")
+	if err != nil {
+		fmt.Printf("error preparing ntag_ndirectory insert: %v\n", err)
+	}
+	defer stmtTagDirectory.Close()
+
+	// ntag nfile insert
+	stmtTagFile, err := db.Prepare("INSERT INTO `ntag_nfile` (`ntag_id`, `nfile_id`) VALUES (?, ?)")
+	if err != nil {
+		fmt.Printf("error preparing ntag_nfile insert: %v\n", err)
+	}
+	defer stmtTagFile.Close()
+
 	if dn.info.ID == 0 {
 		nd := strings.Replace(dn.info.Path, rp, "", 1)
 		res, err := stmtDirectory.Exec(dn.info.Name, nd, dn.info.DateModified, dn.info.Size, len(dn.files), len(dn.leafs), pid)
@@ -275,6 +294,13 @@ func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB, rp string) {
 		dn.info.ID, err = res.LastInsertId()
 		if err != nil {
 			fmt.Printf("error defining ndirectory last insert id: %v\n", dn)
+		}
+
+		for _, t := range tags {
+			_, err = stmtTagDirectory.Exec(t.ID, dn.info.ID)
+			if err != nil {
+				fmt.Printf("error inserting ntag_ndirectory, directory_id: %v, tag_id:%v\n", dn.info.ID, t.ID)
+			}
 		}
 	}
 
@@ -303,15 +329,62 @@ func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB, rp string) {
 		if err != nil {
 			fmt.Printf("error inserting nfile_ndirectory: %v, %v\n", f, dn)
 		}
+
+		for _, t := range tags {
+			_, err = stmtTagFile.Exec(t.ID, f.ID)
+			if err != nil {
+				fmt.Printf("error inserting ntag_nfile, file_id: %v, tag_id:%v\n", f.ID, t.ID)
+			}
+		}
 	}
 
 	for _, d := range dn.leafs {
-		persistDirNode(d, dn.info.ID, sid, db, rp)
+		persistDirNode(d, dn.info.ID, sid, db, rp, tags)
 	}
 
 }
 
-func persist(s *Scan) *Scan {
+func getTags(ntags []string) []NTag {
+	tags := []NTag{}
+
+	db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/nostalgia")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer db.Close()
+
+	stmtTag, err := db.Prepare("INSERT INTO `ntag` (`name`) VALUES (?)")
+	if err != nil {
+		fmt.Printf("error preparing ntag insert: %v\n", err)
+	}
+	defer stmtTag.Close()
+
+	var id int64
+	for _, nt := range ntags {
+		id = 0
+		tag := NTag{}
+		tag.Name = nt
+		db.QueryRow("SELECT `id` FROM `ntag` WHERE lower(`name`) = ?", strings.ToLower(nt)).Scan(&id)
+		if id != 0 {
+			// existing tag
+			tag.ID = id
+		} else {
+			// non existing tag
+			res, err := stmtTag.Exec(nt)
+			if err != nil {
+				fmt.Printf("error inserting ntag: %v\n", nt)
+			} else {
+				tag.ID, _ = res.LastInsertId()
+			}
+		}
+
+		tags = append(tags, tag)
+	}
+
+	return tags
+}
+
+func persist(s *Scan, ntags []string) *Scan {
 	db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/nostalgia")
 	if err != nil {
 		panic(err.Error())
@@ -330,7 +403,9 @@ func persist(s *Scan) *Scan {
 	}
 	s.ID, _ = res.LastInsertId()
 
-	persistDirNode(s.root, s.root.info.ID, s.ID, db, s.root.info.Path+"/")
+	tags := getTags(ntags)
+
+	persistDirNode(s.root, s.root.info.ID, s.ID, db, s.root.info.Path+"/", tags)
 
 	// nscan update
 	stmtUpdateScan, err := db.Prepare("UPDATE `nscan` SET `status` = ? WHERE id = ?")
@@ -435,7 +510,8 @@ func scan(ccmd *cobra.Command, args []string) {
 
 	sp := viper.GetString("scan_path")
 	np := viper.GetString("nostalgia_path")
-	fmt.Printf("\nscan_path: %v\ntags: %v\nsource: %v\n", sp, strings.Join(strings.Split(tags, ","), ","), source)
+	ntags := strings.Split(tags, ",")
+	fmt.Printf("\nscan_path: %v\ntags: %v\nsource: %v\n", sp, strings.Join(ntags, "-"), source)
 	fmt.Println("source directories:")
 	var sourceID int64
 	for _, di := range sd {
@@ -498,7 +574,7 @@ func scan(ccmd *cobra.Command, args []string) {
 	// persist changes
 	partial = time.Now()
 	fmt.Printf("\npersist changes...")
-	_ = persist(s)
+	_ = persist(s, ntags)
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
 
