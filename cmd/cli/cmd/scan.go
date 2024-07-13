@@ -505,7 +505,7 @@ func scan(ccmd *cobra.Command, args []string) {
 	// copy files
 	partial = time.Now()
 	fmt.Printf("\ncopy files...")
-	_ = copyFiles(s, np)
+	_ = copyFiles(s, path.Join(np, source))
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
 }
