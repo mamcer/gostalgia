@@ -1,5 +1,5 @@
 {
-    "scan_path" : "/home/mario/Desktop/nostalgia/scan/caca",
+    "scan_path" : "/media/mario/homunculus",
     "nostalgia_path" : "/home/mario/Desktop/nostalgia/root",
 	"DBDriverName":"mysql",
 	"DBDataSourceName": "root:root@tcp(localhost:3306)/nostalgia"

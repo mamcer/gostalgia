@@ -390,7 +390,7 @@ func scan(ccmd *cobra.Command, args []string) {
 	sd := getSourceDirectories()
 
 	sp := viper.GetString("scan_path")
-	np := viper.GetString("nostalgia_path")
+	//np := viper.GetString("nostalgia_path")
 	fmt.Printf("\nscan_path: %v\ntags: %v\nsource: %v\n", sp, strings.Join(strings.Split(tags, ","), ","), source)
 	fmt.Println("source directories:")
 	var sourceID int64
@@ -447,8 +447,8 @@ func scan(ccmd *cobra.Command, args []string) {
 	s.Duration = elapsed.Milliseconds()
 	fmt.Printf("\nscan process finished: %v\n", elapsed)
 
-	fmt.Println("\npress enter key to continue")
-	fmt.Scanln()
+	// fmt.Println("\npress enter key to continue")
+	// fmt.Scanln()
 
 	// persist changes
 	partial = time.Now()
@@ -458,9 +458,9 @@ func scan(ccmd *cobra.Command, args []string) {
 	fmt.Printf("OK (%v)\n", elapsedpartial)
 
 	// copy files
-	partial = time.Now()
-	fmt.Printf("copy files...")
-	_ = copyFiles(s, np)
-	elapsedpartial = time.Since(partial)
-	fmt.Printf("OK (%v)\n", elapsedpartial)
+	// partial = time.Now()
+	// fmt.Printf("copy files...")
+	// _ = copyFiles(s, np)
+	// elapsedpartial = time.Since(partial)
+	// fmt.Printf("OK (%v)\n", elapsedpartial)
 }

@@ -1,5 +1,13 @@
 # Nostalgia
 
+homunculus
+
+duplicated_GB
+799.15GB
+
+size_GB (unique files)
+1792.50
+
 ## file structure
 
 - cd  

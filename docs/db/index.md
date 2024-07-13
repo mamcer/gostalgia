@@ -71,6 +71,14 @@ Top 10 repeated files
             where fd.nfile_id = f.id  
             group by id,name order by size_GB desc limit 10
 
+ Duplicated files & szie
+
+    select nfd.nfile_id as i, count(nfd.id) as c, sum(nf.size) as s 
+    from nfile_ndirectory as nfd, nfile as nf
+    where nf.id = nfd.nfile_id
+    group by i 
+    order by c desc       
+
 ## remove last scan
 
     SET FOREIGN_KEY_CHECKS=0;

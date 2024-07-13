@@ -66,3 +66,15 @@ pictures
     scan_id: 2, files: 145397, directories: 1155, existing files: 58606 (40%), errors: 0
     updating directory size...[ok]
     total size: 1184495799147 bytes, 1184.5 GB
+
+2024-07-11 (nuc ssd - all homunculus)
+
+OK (1h38m52.748935232s)
+
+updating file size...OK (7.213911ms)
+
+checking existing files...OK (1m50.100899339s)
+file repeated count: 0 (0%)
+
+scan process finished: 1h40m45.509446558s
+persist changes...OK (1h37m37.018295924s)
