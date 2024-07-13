@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -35,11 +36,12 @@ const (
 )
 
 type Scan struct {
-	ID                int64      // scan id
-	DateCreated       time.Time  // scan creation date
-	Duration          int64      // scan duration (in milliseconds)
-	FileRepeatedCount int64      // file repeated scan count
-	Status            ScanStatus // scan status = inprogress, done, error
+	ID                        int64      // scan id
+	DateCreated               time.Time  // scan creation date
+	Duration                  int64      // scan duration (in milliseconds)
+	DbFileRepeatedCount       int64      // db file repeated scan count
+	SameScanFileRepeatedCount int64      // same scan file repeated scan count
+	Status                    ScanStatus // scan status = inprogress, done, error
 
 	files       []*FileItem
 	directories []*DirItem
@@ -222,7 +224,20 @@ func checkExisting(s *Scan) *Scan {
 		if id != 0 {
 			f.ID = id
 			f.FileExists = true
-			s.FileRepeatedCount += 1
+			s.DbFileRepeatedCount += 1
+		}
+	}
+
+	for _, fi := range s.files {
+		for _, f := range s.files {
+			if fi.Path != f.Path && fi.Hash == f.Hash {
+				if s.SameScanFileRepeatedCount == 0 {
+					fmt.Println("")
+				}
+
+				fmt.Printf("file repeated on same scan: '%v'\n", f.Path)
+				s.SameScanFileRepeatedCount += 1
+			}
 		}
 	}
 
@@ -303,13 +318,13 @@ func persist(s *Scan) *Scan {
 	}
 	defer db.Close()
 
-	stmtScan, err := db.Prepare("INSERT INTO `nscan` (`date_created`, `duration`, `file_count`, `directory_count`, `file_repeated_count`, `status`, `root_directory_id`) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	stmtScan, err := db.Prepare("INSERT INTO `nscan` (`date_created`, `duration`, `file_count`, `directory_count`, `db_file_repeated_count`, `same_scan_file_repeated_count`, `status`, `root_directory_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		fmt.Printf("error preparing nscan insert: %v\n", err)
 	}
 	defer stmtScan.Close()
 
-	res, err := stmtScan.Exec(s.DateCreated, s.Duration, len(s.files), len(s.directories)-1, s.FileRepeatedCount, s.Status, s.root.info.ID)
+	res, err := stmtScan.Exec(s.DateCreated, s.Duration, len(s.files), len(s.directories)-1, s.DbFileRepeatedCount, s.SameScanFileRepeatedCount, s.Status, s.root.info.ID)
 	if err != nil {
 		fmt.Printf("error inserting nscan: %v\n", err)
 	}
@@ -354,35 +369,59 @@ func getSourceDirectories() []DirItem {
 
 func copyFiles(s *Scan, np string) *Scan {
 	fmt.Println("")
+	var fok, ef, sf, fe int64 // file_copy_ok, existing_file, skipped_file, file_with_error
+	existing := []string{}
 	for i, f := range s.files {
 		if !f.FileExists {
-			fmt.Printf("[%v/%v] copying file: '%v'\n", i, len(s.files), f.Name)
+			fmt.Printf("[%v/%v] copying file: '%v'", i+1, len(s.files), f.Name)
 			rp := strings.Replace(f.Path, s.root.info.Path, "", 1)
 			fp := path.Join(np, rp)
-			err := os.MkdirAll(filepath.Dir(fp), 0755)
-			if err != nil {
-				fmt.Printf("failed to create directory: '%v' - %v\n", fp, err)
-			} else {
-				i, err := os.Open(f.Path)
-				if err == nil {
-					defer i.Close()
-					o, err := os.Create(fp)
-					if err == nil {
-						defer o.Close()
-						_, err = io.Copy(o, i)
-						if err != nil {
-							fmt.Printf("failed to copy file: '%v' to '%v' - %v", f.Name, fp, err)
-						}
-					} else {
-						fmt.Printf("failed to create file to copy: %v - %v", fp, err)
-					}
-
+			if _, err := os.Stat(fp); errors.Is(err, os.ErrNotExist) {
+				err := os.MkdirAll(filepath.Dir(fp), 0755)
+				if err != nil {
+					fmt.Printf(" - failed to create directory: '%v' - %v\n", fp, err)
+					fe += 1
 				} else {
-					fmt.Printf("failed to open file to copy: %v - %v", f.Path, err)
+					i, err := os.Open(f.Path)
+					if err == nil {
+						defer i.Close()
+						o, err := os.Create(fp)
+						if err == nil {
+							defer o.Close()
+							_, err = io.Copy(o, i)
+							if err != nil {
+								fmt.Printf(" - failed to copy file: '%v' to '%v' - %v\n", f.Name, fp, err)
+								fe += 1
+							} else {
+								fmt.Printf(" - OK\n")
+								fok += 1
+							}
+						} else {
+							fmt.Printf(" - failed to create file to copy: %v - %v\n", fp, err)
+							fe += 1
+						}
+
+					} else {
+						fmt.Printf(" - failed to open file to copy: %v - %v\n", f.Path, err)
+						fe += 1
+					}
 				}
+			} else {
+				fmt.Printf(" - file already exists on disk: '%v'\n", fp)
+				existing = append(existing, fp)
+				ef += 1
 			}
 		} else {
-			fmt.Printf("[%v/%v] skipping existing file: '%v'\n", i, len(s.files), f.Name)
+			fmt.Printf("[%v/%v] skipping existing file: '%v'\n", i+1, len(s.files), f.Name)
+			sf += 1
+		}
+	}
+
+	fmt.Printf("files copied: %v, with error: %v, skipped: %v, existing on disk: %v\n", fok, fe, sf, ef)
+	if len(existing) > 0 {
+		fmt.Printf("existing files on disk:\n")
+		for _, ex := range existing {
+			fmt.Printf("%v\n", ex)
 		}
 	}
 
@@ -445,7 +484,8 @@ func scan(ccmd *cobra.Command, args []string) {
 	_ = checkExisting(s)
 	elapsedpartial = time.Since(partial)
 	fmt.Printf("OK (%v)\n", elapsedpartial)
-	fmt.Printf("file repeated count: %v (%.0f%%)\n", s.FileRepeatedCount, float64(s.FileRepeatedCount*int64(100)/int64(len(s.files))))
+	fmt.Printf("db file repeated count: %v (%.0f%%)\n", s.DbFileRepeatedCount, float64(s.DbFileRepeatedCount*int64(100)/int64(len(s.files))))
+	fmt.Printf("same scan file repeated count: %v (%.0f%%)\n", s.SameScanFileRepeatedCount, float64(s.SameScanFileRepeatedCount*int64(100)/int64(len(s.files))))
 
 	// scan finished
 	elapsed := time.Since(start)

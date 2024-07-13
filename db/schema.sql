@@ -41,7 +41,8 @@ CREATE TABLE `nscan` (
     `duration` INT UNSIGNED NULL,           -- milliseconds
     `file_count` INT UNSIGNED NULL,
     `directory_count` INT UNSIGNED NULL,
-    `file_repeated_count` INT UNSIGNED NULL,
+    `db_file_repeated_count` INT UNSIGNED NULL,
+    `same_scan_file_repeated_count` INT UNSIGNED NULL,
     `status` INT NOT NULL,                  -- inprogress = 0, done = 1, error = 2
     `root_directory_id` BIGINT UNSIGNED NULL,
     PRIMARY KEY (`id`)
