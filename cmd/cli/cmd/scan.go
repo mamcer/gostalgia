@@ -285,21 +285,33 @@ func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB, rp string, ta
 	}
 	defer stmtTagFile.Close()
 
+	var id int64
 	if dn.info.ID == 0 {
 		nd := strings.Replace(dn.info.Path, rp, "", 1)
-		res, err := stmtDirectory.Exec(dn.info.Name, nd, dn.info.DateModified, dn.info.Size, len(dn.files), len(dn.leafs), pid)
-		if err != nil {
-			fmt.Printf("error inserting ndirectory: %v\n", dn)
-		}
-		dn.info.ID, err = res.LastInsertId()
-		if err != nil {
-			fmt.Printf("error defining ndirectory last insert id: %v\n", dn)
+		id = 0
+		db.QueryRow("SELECT `id` FROM `ndirectory` WHERE  path = ?", nd).Scan(&id)
+		// check if the directory already have the tag
+		if id != 0 {
+			dn.info.ID = id
+		} else {
+			res, err := stmtDirectory.Exec(dn.info.Name, nd, dn.info.DateModified, dn.info.Size, len(dn.files), len(dn.leafs), pid)
+			if err != nil {
+				fmt.Printf("error inserting ndirectory: %v\n", dn)
+			}
+			dn.info.ID, err = res.LastInsertId()
+			if err != nil {
+				fmt.Printf("error defining ndirectory last insert id: %v\n", dn)
+			}
 		}
 
 		for _, t := range tags {
-			_, err = stmtTagDirectory.Exec(t.ID, dn.info.ID)
-			if err != nil {
-				fmt.Printf("error inserting ntag_ndirectory, directory_id: %v, tag_id:%v\n", dn.info.ID, t.ID)
+			err = db.QueryRow("SELECT `id` FROM `ntag_ndirectory` WHERE  ntag_id = ? and ndirectory_id = ?", t.ID, dn.info.ID).Scan()
+			// check if the directory already have the tag
+			if err == sql.ErrNoRows {
+				_, err = stmtTagDirectory.Exec(t.ID, dn.info.ID)
+				if err != nil {
+					fmt.Printf("error inserting ntag_ndirectory, directory_id: %v, tag_id:%v\n", dn.info.ID, t.ID)
+				}
 			}
 		}
 	}
@@ -325,15 +337,22 @@ func persistDirNode(dn *DirNode, pid int64, sid int64, db *sql.DB, rp string, ta
 			}
 		}
 
-		_, err = stmtFileDirectory.Exec(f.ID, dn.info.ID, sid, f.Name)
-		if err != nil {
-			fmt.Printf("error inserting nfile_ndirectory: %v, %v\n", f, dn)
+		err = db.QueryRow("SELECT `id` FROM `nfile_ndirectory` WHERE nfile_id = ? and ndirectory_id = ? and name = ?", f.ID, dn.info.ID, f.Name).Scan()
+		if err == sql.ErrNoRows {
+			_, err = stmtFileDirectory.Exec(f.ID, dn.info.ID, sid, f.Name)
+			if err != nil {
+				fmt.Printf("error inserting nfile_ndirectory: %v, %v\n", f, dn)
+			}
 		}
 
 		for _, t := range tags {
-			_, err = stmtTagFile.Exec(t.ID, f.ID)
-			if err != nil {
-				fmt.Printf("error inserting ntag_nfile, file_id: %v, tag_id:%v\n", f.ID, t.ID)
+			err = db.QueryRow("SELECT `id` FROM `ntag_nfile` WHERE  ntag_id = ? and nfile_id = ?", t.ID, f.ID).Scan()
+			// check if the file already have the tag
+			if err == sql.ErrNoRows {
+				_, err = stmtTagFile.Exec(t.ID, f.ID)
+				if err != nil {
+					fmt.Printf("error inserting ntag_nfile, file_id: %v, tag_id:%v\n", f.ID, t.ID)
+				}
 			}
 		}
 	}
