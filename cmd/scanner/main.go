@@ -55,6 +55,14 @@ func scan(root string, sname string, db *sql.DB) int {
 	start := time.Now()
 	fmt.Printf("scan process started\n")
 
+	// nerror insert
+	stmtError, err := db.Prepare("INSERT INTO `nerror` (`message`, `nscan_id`) VALUES (?, ?)")
+	if err != nil {
+		fmt.Printf("error preparing nerror insert: %v\n", err)
+		return 1
+	}
+	defer stmtError.Close()
+
 	// nscan insert
 	stmtScan, err := db.Prepare("INSERT INTO `nscan` (`date_created`, `status`, `name`, `retry_count`) VALUES (?, ?, ?, ?)")
 	defer stmtScan.Close()
