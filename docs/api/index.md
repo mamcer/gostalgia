@@ -118,19 +118,23 @@ Responses: 200, 404
 
 request example 
 
-    curl -s 'http://localhost:3001/v1/files/1' | jq .
+```bash
+curl -s 'http://localhost:3001/v1/files/1' | jq .
+```
 
 response example
 
-    {
-      "id": 3,
-      "name": "coreutils.pdf",
-      "extension": "pdf",
-      "path": "1/doc",
-      "date_modified": "04-01-2023",
-      "size": "1.2 MB",
-      "hash": "40877fd288bc8c6118518d6c5fe565d67658d24e"
-    }
+```json
+{
+  "id": 3,
+  "name": "coreutils.pdf",
+  "extension": "pdf",
+  "path": "1/doc",
+  "date_modified": "04-01-2023",
+  "size": "1.2 MB",
+  "hash": "40877fd288bc8c6118518d6c5fe565d67658d24e"
+}
+```
 
 error codes
 
