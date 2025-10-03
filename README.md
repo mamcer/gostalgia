@@ -49,8 +49,9 @@ example
 scan --tags="tag01,tag 02,tag03" --source="cd|iso|year|music|picture|video"
 ```
 
-    config.json
-    	db connection
-    	scan dir
-    	nostalgia dir
-
+```
+config.json
+	db connection
+	scan dir
+	nostalgia dir
+```
