@@ -2,7 +2,9 @@
 
 ## ping 
 
+```
 GET /v1/ping
+```
 > returns 'pong', health status
 
 Responses: 200
@@ -13,9 +15,11 @@ request example
 
 response example
 
-    {
-      "message": "pong"
-    }
+```json
+{
+  "message": "pong"
+}
+```
 
 ## search
 
