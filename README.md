@@ -19,17 +19,19 @@ size_GB (unique files)
 
 example:
 
-    cd
-        backup-01
-        util-utilitarios-01
-    iso
-        2016-03-31_eco-ciro.iso
-    year
-        2016
-    music
-    picture
-        2023-03-12_pixel-7-pro
-    video        
+```
+cd
+    backup-01
+    util-utilitarios-01
+iso
+    2016-03-31_eco-ciro.iso
+year
+    2016
+music
+picture
+    2023-03-12_pixel-7-pro
+video        
+```
 
 ## process
 
