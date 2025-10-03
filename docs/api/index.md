@@ -23,7 +23,9 @@ response example
 
 ## search
 
+```
 GET /v1/search?contains=[keyword]&type=[image|doc|sheet|audio|video|zip|any]&only_directories=false&after=1000-01-01&before=9999-12-31&page=1&per_page=50
+```
 > search for a resource, query, type, date after & before and paging
 
 Responses: 200, 404
@@ -70,32 +72,36 @@ page / per_page
 
 request example
 
-    curl -s 'http://localhost:3001/v1/search?contains=a&type=doc&only_directories=false&after=2010-07-31&before=2024-01-12&page=1&per_page=50' | jq .
+```bash
+curl -s 'http://localhost:3001/v1/search?contains=a&type=doc&only_directories=false&after=2010-07-31&before=2024-01-12&page=1&per_page=50' | jq .
+```
 
 response example
 
+```json
+{
+  "results": [
     {
-      "results": [
-        {
-          {
-            "id": 100829,
-            "name": "PXL_20221225_050620590.PORTRAIT.jpg",
-            "extension": "jpg",
-            "path": "1/pictures/2023-03-12_pixel-7-pro",
-            "date_modified": "01-01-1970",
-            "size": "6.4 MB",
-            "parent_id": 1175,
-            "parent_name": "mario-facultad"
-            "type" : [file/directory]
-          }
-          ...
-        }
-      ],
-      "page": 1,
-      "per_page": 5,
-      "contains": "a",
-      "total": 100
+      {
+        "id": 100829,
+        "name": "PXL_20221225_050620590.PORTRAIT.jpg",
+        "extension": "jpg",
+        "path": "1/pictures/2023-03-12_pixel-7-pro",
+        "date_modified": "01-01-1970",
+        "size": "6.4 MB",
+        "parent_id": 1175,
+        "parent_name": "mario-facultad"
+        "type" : [file/directory]
+      }
+      ...
     }
+  ],
+  "page": 1,
+  "per_page": 5,
+  "contains": "a",
+  "total": 100
+}
+```
 
 error codes
 
@@ -103,8 +109,9 @@ error codes
 
 ## files 
 
+```
 GET /v1/files/[id]
-
+```
 > files representation
 
 Responses: 200, 404
