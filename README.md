@@ -45,7 +45,9 @@ video
 
 example
 
-    scan --tags="tag01,tag 02,tag03" --source="cd|iso|year|music|picture|video"
+```bash
+scan --tags="tag01,tag 02,tag03" --source="cd|iso|year|music|picture|video"
+```
 
     config.json
     	db connection
