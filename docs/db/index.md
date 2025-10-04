@@ -67,7 +67,9 @@ select * from `nfile_ndirectory` limit 20;
 
 Unique file size 
 
-    select sum(size)/1000/1000/1000 as size_GB from nfile
+```sql
+select sum(size)/1000/1000/1000 as size_GB from nfile
+```
 
 Size of repeated files in GB
 
