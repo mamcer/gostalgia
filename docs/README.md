@@ -36,9 +36,11 @@ SHOW status where variable_name = 'threads_connected';
 
 ## link
 
-    ln -s /media/darkforce/stash/ stash
+```bash
+ln -s /media/darkforce/stash/ stash
 
-    ln -s /mnt/homunculus/pictures stash/2
+ln -s /mnt/homunculus/pictures stash/2
+```
 
 ## times
 
