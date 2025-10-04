@@ -18,19 +18,21 @@ SET FOREIGN_KEY_CHECKS=1;
 
 ## drop all
 
-    use nostalgia;
+```sql
+use nostalgia;
 
-    set foreign_key_checks=0;
+set foreign_key_checks=0;
 
-    drop table `nfile`;
-    drop table `ndirectory`;
-    drop table `nscan`;
-    drop table `nfile_ndirectory`;
-    drop table `ntag`;
-    drop table `ntag_nfile`;
-    drop table `ntag_ndirectory`;
+drop table `nfile`;
+drop table `ndirectory`;
+drop table `nscan`;
+drop table `nfile_ndirectory`;
+drop table `ntag`;
+drop table `ntag_nfile`;
+drop table `ntag_ndirectory`;
 
-    set foreign_key_checks=1;
+set foreign_key_checks=1;
+```
 
 ## count all 
 
