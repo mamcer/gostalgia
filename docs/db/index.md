@@ -102,18 +102,13 @@ order by c desc
 
 ## remove last scan
 
-    SET FOREIGN_KEY_CHECKS=0;
-
-    select @scanid = 2
-
-    delete from nfile where id in (select nfile_id from nfile_ndirectory where nscan_id = @scanid)
-
-    delete from ndirectory where id in (select ndirectory_id from nfile_ndirectory where nscan_id = @scanid)
-
-    delete from nfile_ndirectory where nscan_id = @scanid
-
-    delete from nscan where id = @scanid
-
-    SET FOREIGN_KEY_CHECKS=1;
-
-    -- could leave zombie directories (directories that don't have files won't have an entry in nfile_ndirectory, no way to )
+```sql
+SET FOREIGN_KEY_CHECKS=0;
+select @scanid = 2
+delete from nfile where id in (select nfile_id from nfile_ndirectory where nscan_id = @scanid)
+delete from ndirectory where id in (select ndirectory_id from nfile_ndirectory where nscan_id = @scanid)
+delete from nfile_ndirectory where nscan_id = @scanid
+delete from nscan where id = @scanid
+SET FOREIGN_KEY_CHECKS=1;
+-- could leave zombie directories (directories that don't have files won't have an entry in nfile_ndirectory, no way to )
+```
