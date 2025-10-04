@@ -74,10 +74,12 @@ total size: 1115321065715 bytes, 1115.3 GB
 
 2023-04-07
 
-    process finished: 3h50m38.861497854s
-    scan_id: 2, files: 145397, directories: 1155, existing files: 58606 (40%), errors: 0
-    updating directory size...[ok]
-    total size: 1184495799147 bytes, 1184.5 GB
+```bash
+process finished: 3h50m38.861497854s
+scan_id: 2, files: 145397, directories: 1155, existing files: 58606 (40%), errors: 0
+updating directory size...[ok]
+total size: 1184495799147 bytes, 1184.5 GB
+```
 
 2024-07-11 (nuc ssd - all homunculus)
 
