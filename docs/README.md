@@ -46,11 +46,13 @@ ln -s /mnt/homunculus/pictures stash/2
 
 2022-01-22
 
-    docs
-    process finished: 4h56m38.687302278s
-    scan_id: 1, files: 274887, directories: 41753, existing files: 122007 (44%), errors: 1
-    updating directory size...[ok]
-    total size: 897316160587 bytes, 897.3 GB
+```bash
+docs
+process finished: 4h56m38.687302278s
+scan_id: 1, files: 274887, directories: 41753, existing files: 122007 (44%), errors: 1
+updating directory size...[ok]
+total size: 897316160587 bytes, 897.3 GB
+```
 
 2023-04-07
 
