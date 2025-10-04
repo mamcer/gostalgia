@@ -83,10 +83,12 @@ from (select fd.nfile_id as id, (count(fd.nfile_id)-1)*f.size/1000/1000/1000 as 
 
 Top 10 repeated files
 
-    select fd.nfile_id as id, f.name as name, count(fd.nfile_id)-1 as repeated_count, (count(fd.nfile_id)-1)*f.size/1000/1000/1000 as size_GB 
-            from nfile_ndirectory as fd, nfile as f 
-            where fd.nfile_id = f.id  
-            group by id,name order by size_GB desc limit 10
+```bash
+select fd.nfile_id as id, f.name as name, count(fd.nfile_id)-1 as repeated_count, (count(fd.nfile_id)-1)*f.size/1000/1000/1000 as size_GB 
+        from nfile_ndirectory as fd, nfile as f 
+        where fd.nfile_id = f.id  
+        group by id,name order by size_GB desc limit 10
+```
 
  Duplicated files & szie
 
