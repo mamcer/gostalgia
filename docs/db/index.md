@@ -45,10 +45,12 @@ select count(*) as nfile_directory from `nfile_ndirectory`;
 
 ## select top 20 all 
 
-    select * from `nfile` limit 20;  
-    select * from `ndirectory` limit 20;
-    select * from `nscan` limit 20;
-    select * from `nfile_ndirectory` limit 20;
+```sql
+select * from `nfile` limit 20;  
+select * from `ndirectory` limit 20;
+select * from `nscan` limit 20;
+select * from `nfile_ndirectory` limit 20;
+```
 
 ## schema 
 
