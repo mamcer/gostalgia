@@ -36,10 +36,12 @@ set foreign_key_checks=1;
 
 ## count all 
 
-    select count(*) as nfile from `nfile`;
-    select count(*) as ndirectory from `ndirectory`;
-    select count(*) as nscan from `nscan`;
-    select count(*) as nfile_directory from `nfile_ndirectory`;
+```sql
+select count(*) as nfile from `nfile`;
+select count(*) as ndirectory from `ndirectory`;
+select count(*) as nscan from `nscan`;
+select count(*) as nfile_directory from `nfile_ndirectory`;
+```
 
 ## select top 20 all 
 
