@@ -56,10 +56,12 @@ select * from `nfile_ndirectory` limit 20;
 
 > mycli version
 
-    \dt `nfile`;
-    \dt `ndirectory`;
-    \dt `nscan`;
-    \dt `nfile_ndirectory`;
+```bash
+\dt `nfile`;
+\dt `ndirectory`;
+\dt `nscan`;
+\dt `nfile_ndirectory`;
+```
 
 ## stash size
 
