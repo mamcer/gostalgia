@@ -2,17 +2,19 @@
 
 ## remove all data
 
-    SET FOREIGN_KEY_CHECKS=0;
-    
-    TRUNCATE TABLE `nostalgia`.`nfile`;
-    DELETE FROM `nostalgia`.`ndirectory` where is_source = 0x00;
-    TRUNCATE TABLE `nostalgia`.`nfile_ndirectory`;
-    TRUNCATE TABLE `nostalgia`.`nscan`;
-    TRUNCATE TABLE `nostalgia`.`ntag`;
-    TRUNCATE TABLE `nostalgia`.`ntag_nfile`;
-    TRUNCATE TABLE `nostalgia`.`ntag_ndirectory`;
-    
-    SET FOREIGN_KEY_CHECKS=1;
+```sql
+SET FOREIGN_KEY_CHECKS=0;
+
+TRUNCATE TABLE `nostalgia`.`nfile`;
+DELETE FROM `nostalgia`.`ndirectory` where is_source = 0x00;
+TRUNCATE TABLE `nostalgia`.`nfile_ndirectory`;
+TRUNCATE TABLE `nostalgia`.`nscan`;
+TRUNCATE TABLE `nostalgia`.`ntag`;
+TRUNCATE TABLE `nostalgia`.`ntag_nfile`;
+TRUNCATE TABLE `nostalgia`.`ntag_ndirectory`;
+
+SET FOREIGN_KEY_CHECKS=1;
+```
 
 ## drop all
 
