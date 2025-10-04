@@ -29,9 +29,9 @@ mycli -h localhost -u root -D nostalgia -P 3306
 
 ```sql
 SHOW PROCESSLIST;
-show global status;
+SHOW global status;
 SHOW STATUS WHERE `variable_name` = 'Max_used_connections';
-show status where variable_name = 'threads_connected';
+SHOW status where variable_name = 'threads_connected';
 ```
 
 ## link
