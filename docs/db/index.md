@@ -73,11 +73,13 @@ select sum(size)/1000/1000/1000 as size_GB from nfile
 
 Size of repeated files in GB
 
-    select sum(s.r) as duplicated_GB 
-    from (select fd.nfile_id as id, (count(fd.nfile_id)-1)*f.size/1000/1000/1000 as r 
-            from nfile_ndirectory as fd, nfile as f 
-            where fd.nfile_id = f.id  
-            group by id order by r desc) as s
+```sql
+select sum(s.r) as duplicated_GB 
+from (select fd.nfile_id as id, (count(fd.nfile_id)-1)*f.size/1000/1000/1000 as r 
+        from nfile_ndirectory as fd, nfile as f 
+        where fd.nfile_id = f.id  
+        group by id order by r desc) as s
+```
 
 Top 10 repeated files
 
