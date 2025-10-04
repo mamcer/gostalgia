@@ -27,10 +27,12 @@ mycli -h localhost -u root -D nostalgia -P 3306
 
 ### MySql connections
 
-    SHOW PROCESSLIST;
-    show global status;
-    SHOW STATUS WHERE `variable_name` = 'Max_used_connections';
-    show status where variable_name = 'threads_connected';
+```sql
+SHOW PROCESSLIST;
+show global status;
+SHOW STATUS WHERE `variable_name` = 'Max_used_connections';
+show status where variable_name = 'threads_connected';
+```
 
 ## link
 
