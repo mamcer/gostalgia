@@ -56,10 +56,12 @@ total size: 897316160587 bytes, 897.3 GB
 
 2023-04-07
 
-    process finished: 4h29m23.65938061s
-    scan_id: 1, files: 329518, directories: 44109, existing files: 134574 (40%), errors: 1
-    updating directory size...[ok]
-    total size: 1241799735052 bytes, 1241.8 GB
+```bash
+process finished: 4h29m23.65938061s
+scan_id: 1, files: 329518, directories: 44109, existing files: 134574 (40%), errors: 1
+updating directory size...[ok]
+total size: 1241799735052 bytes, 1241.8 GB
+```
 
 pictures
 
