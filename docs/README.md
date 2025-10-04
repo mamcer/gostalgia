@@ -21,7 +21,9 @@ create database nostalgia;
 
 ### MyCli
 
-    mycli -h localhost -u root -D nostalgia -P 3306
+```bash
+mycli -h localhost -u root -D nostalgia -P 3306
+```
 
 ### MySql connections
 
