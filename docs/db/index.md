@@ -92,11 +92,13 @@ select fd.nfile_id as id, f.name as name, count(fd.nfile_id)-1 as repeated_count
 
  Duplicated files & szie
 
-    select nfd.nfile_id as i, count(nfd.id) as c, sum(nf.size) as s 
-    from nfile_ndirectory as nfd, nfile as nf
-    where nf.id = nfd.nfile_id
-    group by i 
-    order by c desc       
+```sql
+select nfd.nfile_id as i, count(nfd.id) as c, sum(nf.size) as s 
+from nfile_ndirectory as nfd, nfile as nf
+where nf.id = nfd.nfile_id
+group by i 
+order by c desc       
+```
 
 ## remove last scan
 
