@@ -1,3 +1,0 @@
-- [index](README.md)
-- [api](api/index.md)
-- [db](db/index.md)
