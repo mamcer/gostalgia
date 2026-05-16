@@ -7,7 +7,7 @@ A high-performance media management and discovery engine built in Go. Optimized 
 Gostalgia reflects a journey through different architectural paradigms:
 
 *   **2020 (The Beginning):** Originally a hand-crafted Go project created to solve personal media organization needs and mostly cement Golang knowledge from official documentation and the Go blue book. Tagged as `v0.1.0-manual`.
-*   **2025 (The C# Era):** Migrated to .NET (C#) to explore modern Enterprise patterns and Entity Framework.
+*   **2025 (The C# Era):** Migrated to .NET (C#) to explore modern Enterprise patterns and Entity Framework ([nostalgia](https://github.com/mamcer/nostalgia)).
 *   **2026 (The Agentic Renaissance):** Completely re-imagined and rewritten in **Go** for maximum performance and modern observability. This version (`v1.0.0-agentic`) was co-engineered with **Gemini CLI**, leveraging agentic workflows to build a robust, highly parallelized infrastructure.
 
 ## Core Features
