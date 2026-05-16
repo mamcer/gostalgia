@@ -1,7 +1,7 @@
 # Binaries and IDEs
 bin/
-gostalgia-cli
-gostalgia-api
+/gostalgia-cli
+/gostalgia-api
 .vscode/
 .idea/
 *.swp
