@@ -1,0 +1,678 @@
+basePath: /v1
+definitions:
+  domain.NDirectory:
+    properties:
+      date_modified:
+        type: string
+      directory_count:
+        type: integer
+      file_count:
+        type: integer
+      file_nodes:
+        items:
+          $ref: '#/definitions/domain.NFileNode'
+        type: array
+      full_path:
+        type: string
+      id:
+        type: integer
+      is_source:
+        type: boolean
+      name:
+        type: string
+      parent_directory:
+        $ref: '#/definitions/domain.NDirectory'
+      parent_directory_id:
+        type: integer
+      size:
+        type: integer
+      tags:
+        items:
+          $ref: '#/definitions/domain.NTag'
+        type: array
+    type: object
+  domain.NFile:
+    properties:
+      date_modified:
+        type: string
+      extension:
+        type: string
+      hash:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      path:
+        type: string
+      size:
+        type: integer
+      tags:
+        items:
+          $ref: '#/definitions/domain.NTag'
+        type: array
+    type: object
+  domain.NFileNode:
+    properties:
+      directory:
+        $ref: '#/definitions/domain.NDirectory'
+      file:
+        $ref: '#/definitions/domain.NFile'
+      id:
+        type: integer
+      name:
+        type: string
+      ndirectory_id:
+        type: integer
+      nfile_id:
+        type: integer
+      nscan_id:
+        type: integer
+      scan:
+        $ref: '#/definitions/domain.NScan'
+    type: object
+  domain.NScan:
+    properties:
+      date_created:
+        type: string
+      directory_count:
+        type: integer
+      duration:
+        type: integer
+      existing_file_repeated_count:
+        type: integer
+      file_count:
+        type: integer
+      id:
+        type: integer
+      internal_file_repeated_count:
+        type: integer
+      root_directory:
+        $ref: '#/definitions/domain.NDirectory'
+      root_directory_id:
+        type: integer
+      status:
+        $ref: '#/definitions/domain.NScanStatus'
+    type: object
+  domain.NScanStatus:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    type: integer
+    x-enum-varnames:
+    - NScanStatusNotStarted
+    - NScanStatusInProgress
+    - NScanStatusCompleted
+    - NScanStatusFailed
+  domain.NTag:
+    properties:
+      directories:
+        items:
+          $ref: '#/definitions/domain.NDirectory'
+        type: array
+      files:
+        items:
+          $ref: '#/definitions/domain.NFile'
+        type: array
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  dto.NDirectoryDto:
+    properties:
+      date_modified:
+        type: string
+      directories:
+        items:
+          $ref: '#/definitions/dto.NDirectoryDto'
+        type: array
+      directory_count:
+        type: integer
+      file_count:
+        type: integer
+      files:
+        items:
+          $ref: '#/definitions/dto.NFileDto'
+        type: array
+      full_path:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      parent_directory_id:
+        type: integer
+      size:
+        type: string
+      size_raw:
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+    required:
+    - full_path
+    - name
+    type: object
+  dto.NDirectorySearchResultDto:
+    properties:
+      contains:
+        type: string
+      page:
+        type: integer
+      per_page:
+        type: integer
+      result:
+        items:
+          $ref: '#/definitions/dto.NDirectoryDto'
+        type: array
+      total:
+        type: integer
+    type: object
+  dto.NFileDto:
+    properties:
+      date_modified:
+        type: string
+      extension:
+        type: string
+      hash:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      parent_directory:
+        $ref: '#/definitions/dto.NDirectoryDto'
+      path:
+        type: string
+      size:
+        type: string
+      size_raw:
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+    required:
+    - hash
+    - name
+    - path
+    type: object
+  dto.NFileSearchResultDto:
+    properties:
+      contains:
+        type: string
+      page:
+        type: integer
+      per_page:
+        type: integer
+      result:
+        items:
+          $ref: '#/definitions/dto.NFileDto'
+        type: array
+      total:
+        type: integer
+    type: object
+  dto.UnifiedSearchResultDto:
+    properties:
+      directories:
+        items:
+          $ref: '#/definitions/dto.NDirectoryDto'
+        type: array
+      files:
+        items:
+          $ref: '#/definitions/dto.NFileDto'
+        type: array
+      tags:
+        items:
+          type: string
+        type: array
+      total:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API para gestionar archivos, directorios y etiquetas en Nostalgia.
+  title: Nostalgia API
+  version: "1.0"
+paths:
+  /directories/{id}:
+    get:
+      description: Devuelve los detalles de un directorio específico
+      parameters:
+      - description: Directory ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NDirectoryDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtener directorio por ID
+      tags:
+      - directories
+  /directories/{id}/directories:
+    get:
+      description: Devuelve la lista de subdirectorios dentro de un directorio
+      parameters:
+      - description: Directory ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.NDirectoryDto'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtener subdirectorios de un directorio
+      tags:
+      - directories
+  /directories/{id}/files:
+    get:
+      description: Devuelve la lista de archivos dentro de un directorio
+      parameters:
+      - description: Directory ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.NFileDto'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtener archivos de un directorio
+      tags:
+      - directories
+  /directories/search:
+    get:
+      description: Busca directorios por nombre y fecha
+      parameters:
+      - description: Texto a buscar en el nombre
+        in: query
+        name: contains
+        required: true
+        type: string
+      - description: Fecha mínima (YYYY-MM-DD)
+        in: query
+        name: after
+        type: string
+      - description: Fecha máxima (YYYY-MM-DD)
+        in: query
+        name: before
+        type: string
+      - default: 1
+        description: Número de página
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Resultados por página
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NDirectorySearchResultDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar directorios
+      tags:
+      - directories
+  /files/{id}:
+    get:
+      description: Devuelve los detalles de un archivo específico
+      parameters:
+      - description: File ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NFileDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtener archivo por ID
+      tags:
+      - files
+  /files/count:
+    get:
+      description: Devuelve el número total de archivos en la base de datos
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              format: int64
+              type: integer
+            type: object
+      summary: Contar archivos
+      tags:
+      - files
+  /files/search:
+    get:
+      description: Busca archivos por nombre, fecha y tipo
+      parameters:
+      - description: Texto a buscar en el nombre
+        in: query
+        name: contains
+        required: true
+        type: string
+      - description: Fecha mínima (YYYY-MM-DD)
+        in: query
+        name: after
+        type: string
+      - description: Fecha máxima (YYYY-MM-DD)
+        in: query
+        name: before
+        type: string
+      - default: any
+        description: Tipo de archivo (any, image, video)
+        in: query
+        name: type
+        type: string
+      - default: 1
+        description: Número de página
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Resultados por página
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NFileSearchResultDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar archivos
+      tags:
+      - files
+  /health:
+    get:
+      description: Devuelve el estado de la API y su versión
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Chequeo de salud
+      tags:
+      - health
+  /scans/recent:
+    get:
+      description: Devuelve una lista de los escaneos realizados recientemente
+      parameters:
+      - default: 5
+        description: Cantidad máxima de resultados
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.NScan'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtener escaneos recientes
+      tags:
+      - scans
+  /search:
+    get:
+      description: Busca archivos, directorios y etiquetas que coincidan con el texto
+      parameters:
+      - description: Texto a buscar
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UnifiedSearchResultDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Búsqueda unificada
+      tags:
+      - search
+  /tags:
+    get:
+      description: Devuelve la lista completa de etiquetas
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtener todas las etiquetas
+      tags:
+      - tags
+  /tags/{tagName}/directories/{directoryId}:
+    post:
+      description: Asocia una etiqueta a un directorio específico y a todos sus archivos
+      parameters:
+      - description: Nombre de la etiqueta
+        in: path
+        name: tagName
+        required: true
+        type: string
+      - description: ID del directorio
+        in: path
+        name: directoryId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Añadir etiqueta a directorio
+      tags:
+      - tags
+  /tags/popular:
+    get:
+      description: Devuelve las etiquetas más utilizadas
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obtener etiquetas populares
+      tags:
+      - tags
+  /tags/search:
+    get:
+      description: Busca archivos asociados a una etiqueta específica
+      parameters:
+      - description: Nombre de la etiqueta
+        in: query
+        name: tag
+        required: true
+        type: string
+      - default: 1
+        description: Número de página
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Resultados por página
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.NFileSearchResultDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Buscar archivos por etiqueta
+      tags:
+      - tags
+swagger: "2.0"

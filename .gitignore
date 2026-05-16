@@ -1,0 +1,41 @@
+# Binaries and IDEs
+bin/
+gostalgia-cli
+gostalgia-api
+.vscode/
+.idea/
+*.swp
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Secrets and Local Config
+.env
+.env.local
+.env.*.local
+
+# Personal / Private Training Data
+training_data/
+*.log
+temp/
+
+# Go specific
+vendor/
+obj/
+
+# Web / Frontend
+web/node_modules/
+web/dist/
+web/.svelte-kit/
+web/.env
+
+# Database
+*.db
+*.sqlite
+*.sql.gz
+
+# OS specific
+.DS_Store
+Thumbs.db
